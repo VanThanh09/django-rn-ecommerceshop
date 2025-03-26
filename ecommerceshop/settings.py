@@ -84,7 +84,7 @@ AUTH_USER_MODEL = 'eshopapis.User'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'ecommerceshop',
+        'NAME': 'lulushop',
         'USER': 'root',
         'PASSWORD': '123456',
         'HOST': '',
