@@ -114,6 +114,7 @@ class Interaction(models.Model):
 
 class Comment(Interaction):
     content=models.TextField()
+    parent=models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name="replies")
 
     def __str__(self):
         return self.content
