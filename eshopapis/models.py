@@ -5,11 +5,12 @@ from django.utils.translation import gettext_lazy as _
 
 
 class User(AbstractUser):
+    # Các vài trò người dùng trong hệ thống
     class UserRole(models.TextChoices):
-        ADMIN = "AD", _("ADMIN")
-        EMPLOYEE = "EM", _("EMPLOYEE")
-        SELLER = "SE", _("SELLER")
-        CUSTOMER = "CUS", _("CUSTOMER")
+        ADMIN = "AD", _("ADMIN") # Người quản trị hệ thống
+        EMPLOYEE = "EM", _("EMPLOYEE") # Nhân viên của sàn giao dịch
+        SELLER = "SE", _("SELLER") # Người dùng sau khi đăng kí là người bán hàng trên sàn
+        CUSTOMER = "CUS", _("CUSTOMER") # Khách hàng
 
     avatar = CloudinaryField(null=True)
     user_role = models.CharField(max_length=3, choices=UserRole)
@@ -28,7 +29,7 @@ class BaseModel(models.Model):
 class Store(BaseModel):
     name = models.CharField(max_length=255)
     description = models.TextField()
-    owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE) # Chủ sở hữu cửa hàng
 
     def __str__(self):
         return self.name
@@ -37,7 +38,7 @@ class Store(BaseModel):
 class Product(BaseModel):
     name = models.CharField(max_length=255)
     description = models.TextField()
-    store = models.ForeignKey(Store, on_delete=models.CASCADE)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE) # Sản phẩm thuộc cửa hàng nào
 
     def __str__(self):
         return self.name
@@ -45,22 +46,22 @@ class Product(BaseModel):
 
 class Category(models.Model):
     name=models.CharField(max_length=255)
-    products=models.ManyToManyField('Product')
+    products=models.ManyToManyField('Product') # Một danh mục chứa nhiều sản phẩm, sản phẩm tộc nhiều danh mục
 
     def __str__(self):
         return self.name
 
 
 class Attribute(models.Model):
-    name=models.CharField(max_length=255)
+    name=models.CharField(max_length=255) # Tên thuộc tính (màu sắc, size...)
 
     def __str__(self):
         return self.name
 
 
 class AttributeValue(models.Model):
-    value=models.CharField(max_length=255)
-    attribute=models.ForeignKey(Attribute, on_delete=models.CASCADE)
+    value=models.CharField(max_length=255) # Giá trị của thuộc tính (ví dụ: đỏ, xanh, L, M...)
+    attribute=models.ForeignKey(Attribute, on_delete=models.CASCADE) # Tên  thuộc tính của giá trị đó
 
     def __str__(self):
         return self.value
@@ -69,24 +70,24 @@ class AttributeValue(models.Model):
 class ProductVariant(BaseModel):
     quantity=models.IntegerField(default=0)
     price=models.FloatField(default=0)
-    product=models.ForeignKey(Product, on_delete=models.CASCADE)
-    attributes=models.ManyToManyField('AttributeValue')
+    product=models.ForeignKey(Product, on_delete=models.CASCADE) # Thuộc về sản phẩm nào
+    attributes=models.ManyToManyField('AttributeValue') # Các giá trị thuộc tính của biến thể
 
 
 class Order(models.Model):
     class PaymentMethod(models.TextChoices):
-        ONLINE = 'ON', _("ONLINE")
-        OFFLINE = 'OF', _("OFFLINE")
+        ONLINE = 'ON', _("ONLINE") # Thanh toán online ngay khi bắt đầu mua
+        OFFLINE = 'OF', _("OFFLINE") # Thanh toán sau khi nhận được hàng
 
     class OrderStatus(models.TextChoices):
-        PENDING = 'PE', _("PENDING")
-        SUCCESS = 'SU', _("SUCCESS")
-        SHIPPING = 'SH', _("SHIPPING")
-        CANCEL = 'CA', _("CANCEL")
+        PENDING = 'PE', _("PENDING") # Khi sản phẩm bắt được khách hàng xác nhận mua
+        SUCCESS = 'SU', _("SUCCESS") # Sau khi khách hàng xác nhận đã nhận được hàng
+        SHIPPING = 'SH', _("SHIPPING") # Sản phẩm đã rời khỏi kho của người bán
+        CANCEL = 'CA', _("CANCEL") # Khách hàng hủy đơn khi đang ở PENDING, khách không nhận hàng, ....
 
     created_date=models.DateTimeField(auto_now_add=True)
-    payment_method=models.CharField(max_length=2, choices=PaymentMethod)
-    order_status=models.CharField(max_length=2, choices=OrderStatus)
+    payment_method=models.CharField(max_length=2, choices=PaymentMethod) # Phương thức thanh toán
+    order_status=models.CharField(max_length=2, choices=OrderStatus) # Trạng thái đơn hàng
     total_price=models.FloatField(default=0)
     customer=models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
@@ -94,27 +95,28 @@ class Order(models.Model):
 class OrderDetail(models.CharField):
     quantity=models.IntegerField(default=1)
     unit_price=models.FloatField()
-    order=models.ForeignKey(Order, on_delete=models.CASCADE)
-    product=models.ForeignKey(ProductVariant, on_delete=models.SET_NULL)
+    order=models.ForeignKey(Order, on_delete=models.CASCADE) # Thuộc order nào
+    product=models.ForeignKey(ProductVariant, on_delete=models.SET_NULL) # Biến thể sản phẩm nào
 
 
 class Cart(models.Model):
+    active=models.BooleanField(default=True) # Khi sản phẩm hết số lượng, active=False, không thể mua sản phẩm này dù con trong giỏ hàng
     quantity=models.IntegerField(default=1)
-    product=models.ForeignKey(ProductVariant, on_delete=models.CASCADE)
+    product=models.ForeignKey(ProductVariant, on_delete=models.CASCADE) # Biến thể sản phẩm nào
     user=models.ForeignKey(User, on_delete=models.CASCADE)
 
 
 class Interaction(models.Model):
-    user=models.ForeignKey(User, on_delete=models.CASCADE)
-    product=models.ForeignKey(Product, on_delete=models.CASCADE)
+    user=models.ForeignKey(User, on_delete=models.CASCADE) # User nào tương tác
+    product=models.ForeignKey(Product, on_delete=models.CASCADE) # Tương tác với sản phẩm nào
 
     class Meta:
         abstract=True
 
 
 class Comment(Interaction):
-    content=models.TextField()
-    parent=models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name="replies")
+    content=models.TextField() # Nội dung bình luận
+    parent=models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name="replies") #Bình luận cha, trả lời bình luận khác, nếu là bình luận chính của sản phẩm thì null
 
     def __str__(self):
         return self.content
@@ -122,7 +124,7 @@ class Comment(Interaction):
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 class Rating(Interaction):
-    rating=models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)])
+    rating=models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)]) # Đánh giá sao ( tối thiểu 1s tối đa 5s)
 
     def __str__(self):
         return self.rating
