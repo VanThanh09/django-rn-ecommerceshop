@@ -32,14 +32,18 @@ This is a Django-based web application for a ecommerce shop.
 
 ## Database Setup
 
-1. Apply the migrations:
+1. Delete existing migrations: 
+
+- You need delete all migration files inside the migrations folder except for `__init__.py`.
+
+2. Apply the migrations:
 
     ```sh
     python manage.py makemigrations
     python manage.py migrate
     ```
 
-2. Create a superuser:
+3. Create a superuser:
 
     ```sh
     python manage.py createsuperuser
