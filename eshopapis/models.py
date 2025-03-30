@@ -96,7 +96,7 @@ class OrderDetail(models.Model):
     quantity=models.IntegerField(default=1)
     unit_price=models.FloatField()
     order=models.ForeignKey(Order, on_delete=models.CASCADE) # Thuộc order nào
-    product=models.ForeignKey(ProductVariant, on_delete=models.SET_NULL) # Biến thể sản phẩm nào
+    product=models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True) # Biến thể sản phẩm nào
 
 
 class Cart(models.Model):
