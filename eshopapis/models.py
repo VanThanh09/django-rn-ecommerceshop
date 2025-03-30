@@ -12,7 +12,7 @@ class User(AbstractUser):
         SELLER = "SE", _("SELLER") # Người dùng sau khi đăng kí là người bán hàng trên sàn
         CUSTOMER = "CUS", _("CUSTOMER") # Khách hàng
 
-    avatar = CloudinaryField(null=True)
+    avatar = CloudinaryField()
     user_role = models.CharField(max_length=3, choices=UserRole)
 
 
@@ -24,7 +24,6 @@ class BaseModel(models.Model):
 
     class Meta:
         abstract=True
-
 
 class Store(BaseModel):
     name = models.CharField(max_length=255)
@@ -39,14 +38,13 @@ class Product(BaseModel):
     name = models.CharField(max_length=255)
     description = models.TextField()
     store = models.ForeignKey(Store, on_delete=models.CASCADE) # Sản phẩm thuộc cửa hàng nào
-
+    categories =models.ManyToManyField('Category') # Một danh mục chứa nhiều sản phẩm, sản phẩm tộc nhiều danh mục
     def __str__(self):
         return self.name
 
 
 class Category(models.Model):
     name=models.CharField(max_length=255)
-    products=models.ManyToManyField('Product') # Một danh mục chứa nhiều sản phẩm, sản phẩm tộc nhiều danh mục
 
     def __str__(self):
         return self.name
@@ -96,7 +94,7 @@ class OrderDetail(models.Model):
     quantity=models.IntegerField(default=1)
     unit_price=models.FloatField()
     order=models.ForeignKey(Order, on_delete=models.CASCADE) # Thuộc order nào
-    product=models.ForeignKey(ProductVariant, on_delete=models.SET_NULL) # Biến thể sản phẩm nào
+    product=models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True) # Biến thể sản phẩm nào
 
 
 class Cart(models.Model):
@@ -126,5 +124,4 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 class Rating(Interaction):
     rating=models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)]) # Đánh giá sao ( tối thiểu 1s tối đa 5s)
 
-    def __str__(self):
-        return self.rating
+
