@@ -40,14 +40,21 @@ This is a Django-based web application for a ecommerce shop.
 
     ```sh
     python manage.py makemigrations
+    ```
+   ```sh
     python manage.py migrate
     ```
 
-3. Create a superuser:
+3. Load data:
 
     ```sh
-    python manage.py createsuperuser
+    python manage.py loaddata data.json
     ```
+   
+4. Admin User Account
+
+- Username: admin
+- Password: 123
     
 ## Running the Server
 

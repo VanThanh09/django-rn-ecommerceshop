@@ -20,7 +20,7 @@ class BaseModel(models.Model):
     active = models.BooleanField(default=True)
     created_date=models.DateTimeField(auto_now_add=True)
     updated_date=models.DateTimeField(auto_now=True)
-    logo = CloudinaryField(null=True)
+    logo = CloudinaryField(null=True, blank=True)
 
     class Meta:
         abstract=True
@@ -72,6 +72,9 @@ class ProductVariant(BaseModel):
     price=models.FloatField(default=0)
     product=models.ForeignKey(Product, on_delete=models.CASCADE) # Thuộc về sản phẩm nào
     attributes=models.ManyToManyField('AttributeValue') # Các giá trị thuộc tính của biến thể
+
+    def __str__(self):
+        return f"{self.product.name} - Tồn kho: {self.quantity} - Giá: {"{:,.0f}".format(self.price)} VND"
 
 
 class Order(models.Model):
@@ -127,4 +130,4 @@ class Rating(Interaction):
     rating=models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)]) # Đánh giá sao ( tối thiểu 1s tối đa 5s)
 
     def __str__(self):
-        return self.rating
+        return str(self.rating)
