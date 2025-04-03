@@ -17,7 +17,6 @@ from django.conf.global_settings import AUTH_USER_MODEL
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
@@ -29,7 +28,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -39,8 +37,25 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # applications
     'eshopapis.apps.EshopapisConfig',
+
+    # other framework
+    'rest_framework',
+    'drf_yasg',
+    'oauth2_provider',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+    ]
+}
+
+OAUTH2_PROVIDER = {
+    'DEFAULT_AUTHENTICATION_CLASSES': ( 'oauth2_provider.contrib.rest_framework.OAuth2Authentication',)
+}
 
 import cloudinary
 import cloudinary.uploader
@@ -48,9 +63,9 @@ from cloudinary.utils import cloudinary_url
 
 # Configuration
 cloudinary.config(
-    cloud_name = "drzc4fmxb",
-    api_key = "422829951512966",
-    api_secret = "ILJ11vG7Q7OqbjxyhWS1lNJMN5U", # Click 'View API Keys' above to copy your API secret
+    cloud_name="drzc4fmxb",
+    api_key="422829951512966",
+    api_secret="ILJ11vG7Q7OqbjxyhWS1lNJMN5U",  # Click 'View API Keys' above to copy your API secret
     secure=True
 )
 
@@ -65,6 +80,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'eshop.urls'
+
 
 TEMPLATES = [
     {
@@ -84,11 +100,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'eshop.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 import pymysql
+
 pymysql.install_as_MySQLdb()
 
 AUTH_USER_MODEL = 'eshopapis.User'
@@ -102,7 +118,6 @@ DATABASES = {
         'HOST': '',
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -122,7 +137,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
@@ -134,7 +148,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
@@ -144,3 +157,7 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+CLIENT_ID = 'Gx1OLloKdnAYa6m3KBqCXjMcURngb3zXYnixtbLd'
+
+CLIENT_SECRET = 'Wzj6Tvd4PUKR2ktGZd0Pr2agvpuEc0sNhdFZ4djQzmAN4o6i7m5MofOLZwDpHKvrlpPlVB8voBYIyd89kUimsAcM5EdWYUgKB8JWS8XNEl7oi3fb1kyLfHWFSScNxSd9'

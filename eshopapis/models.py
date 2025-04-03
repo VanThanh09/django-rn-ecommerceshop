@@ -54,6 +54,7 @@ class Category(models.Model):
 
 class Attribute(models.Model):
     name=models.CharField(max_length=255) # Tên thuộc tính (màu sắc, size...)
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return self.name
