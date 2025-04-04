@@ -13,49 +13,6 @@ class StoreSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'owner']
 
 
-class AttributeSerializer(serializers.ModelSerializer):
-    # attribute_value = serializers.CharField(source='attributevalue_set.value')
-    attribute_value = serializers.StringRelatedField(many=True, source='attributevalue_set')
-
-    class Meta:
-        model = Attribute
-        fields = ['name', 'attribute_value']
-
-
-class AttributeValueSerializer(serializers.ModelSerializer):
-    attribute_name = serializers.CharField(source='attribute.name')
-
-    class Meta:
-        model = AttributeValue
-        fields = ['attribute_name', 'value']
-
-
-# ProductVariantSerializer trả ra thông tin các biến thể của product ( là product variant)
-class ProductVariantSerializer(serializers.ModelSerializer):
-    attributes = AttributeValueSerializer(many=True)
-
-    class Meta:
-        model=ProductVariant
-        fields=['id', 'logo', 'quantity', 'price', 'attributes']
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-
-        data['logo'] = instance.logo.url
-
-        return data
-
-
-# ProductSerializer trả ra thông tin product
-class ProductSerializer(serializers.ModelSerializer):
-    store = StoreSerializer()
-    attribute_set = AttributeSerializer(many=True)
-
-    class Meta:
-        model = Product
-        fields = ['id', 'name', 'description', 'store', 'attribute_set']
-
-
 # UserSerializer trả ra thông tin của user
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -83,3 +40,70 @@ class UserSerializer(serializers.ModelSerializer):
         data['avatar'] = instance.avatar.url
 
         return data
+
+
+# # AttributeSerializer trả ra thông tin tên của attribute
+# class AttributeSerializer(serializers.ModelSerializer):
+#
+#     class Meta:
+#         model = Attribute
+#         fields = ['name']
+
+
+# AttributeValueSerializer trả ra thông tin tên và giá trị của attribute ( Màu sắc - Đen, Size - XL)
+class AttributeValueSerializer(serializers.ModelSerializer):
+    attribute_name = serializers.CharField(source='attribute.name')
+
+    class Meta:
+        model = AttributeValue
+        fields = ['attribute_name', 'value']
+
+
+# eProductVariantSerializr trả ra thông tin các biến thể của một product (thông tin chi tiết)
+class ProductVariantSerializer(serializers.ModelSerializer):
+    attributes = AttributeValueSerializer(many=True)
+
+    class Meta:
+        model=ProductVariant
+        fields=['id', 'logo', 'quantity', 'price', 'attributes']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        data['logo'] = instance.logo.url
+
+        return data
+
+
+class ProductDetailSerializer(serializers.ModelSerializer):
+    productvariant_set=ProductVariantSerializer(many=True)
+    store = StoreSerializer()
+    attributes = serializers.SerializerMethodField()
+
+    class Meta:
+        model=Product
+        fields = ['id', 'name', 'description', 'store', 'attributes', 'productvariant_set']
+
+    def get_attributes(self, obj):
+        """Tạo danh sách thuộc tính của tất cả biến thể"""
+        attributes = {}
+        for variant in obj.productvariant_set.all(): # product_variant
+            for attr_value in variant.attributes.all(): # attribute_value
+                attr_name = attr_value.attribute.name # lấy attribute name
+                if attr_name not in attributes: # kiểm tra attribute name đã tốn tại trong set chưa
+                    attributes[attr_name] = set() # nếu chưa thì tạo mới
+                attributes[attr_name].add(attr_value.value) # nếu đã có rồi thì chỉ cần thêm value vào attribute name đó
+
+
+        # Chuyển `set` thành `list` để trả về JSON
+        return {key: list(values) for key, values in attributes.items()}
+
+
+# ProductSerializer trả ra thông tin product + các biến thể ( variant)
+class ProductSerializer(serializers.ModelSerializer):
+    store = StoreSerializer()
+    # attribute_set = AttributeSerializer(many=True)
+
+    class Meta:
+        model = Product
+        fields = ['id', 'name', 'description', 'store']

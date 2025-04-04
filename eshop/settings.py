@@ -24,9 +24,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-qv15!%6vr*)g@+b5^)kfcu391hc6e3t#g7uy%c)ks1b7g7w3-p'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_yasg',
     'oauth2_provider',
+    # 'corsheaders',
 ]
 
 REST_FRAMEWORK = {
@@ -54,7 +55,7 @@ REST_FRAMEWORK = {
 }
 
 OAUTH2_PROVIDER = {
-    'DEFAULT_AUTHENTICATION_CLASSES': ( 'oauth2_provider.contrib.rest_framework.OAuth2Authentication',)
+    'DEFAULT_AUTHENTICATION_CLASSES': ('oauth2_provider.contrib.rest_framework.OAuth2Authentication',)
 }
 
 import cloudinary
@@ -69,6 +70,14 @@ cloudinary.config(
     secure=True
 )
 
+# CORS_ALLOW_ALL_ORIGINS = True
+#
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:8000",  # Swagger UI
+#     "http://127.0.0.1:8000",
+#     "https://b1a2-115-78-235-98.ngrok-free.app",  # URL ngrok
+# ]
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -77,10 +86,13 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # "corsheaders.middleware.CorsMiddleware",
+    # "django.middleware.common.CommonMiddleware",
 ]
 
-ROOT_URLCONF = 'eshop.urls'
 
+
+ROOT_URLCONF = 'eshop.urls'
 
 TEMPLATES = [
     {

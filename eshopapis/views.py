@@ -17,18 +17,18 @@ class ProductViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Product.objects.filter(active=True)
     serializer_class = serializers.ProductSerializer
 
-    # return all variant of 1 product
-    @action(methods=['get'], detail=True, url_path='product_variant')
-    def get_product_variant(self, request, pk):
-        product_variant = self.get_object().productvariant_set.filter(active=True)
-
-        return Response(serializers.ProductVariantSerializer(product_variant, many=True).data, status=status.HTTP_200_OK)
+    # # return all variant of 1 product
+    # @action(methods=['get'], detail=True, url_path='product_variant')
+    # def get_product_variant(self, request, pk):
+    #     product_variant = self.get_object().productvariant_set.filter(active=True)
+    #
+    #     return Response(serializers.ProductVariantSerializer(product_variant, many=True).data, status=status.HTTP_200_OK)
 
 
 
 class ProductDetailViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
     queryset = Product.objects.filter(active=True)
-    serializer_class = serializers.ProductSerializer
+    serializer_class = serializers.ProductDetailSerializer
 
 
 class StoreDetailViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
