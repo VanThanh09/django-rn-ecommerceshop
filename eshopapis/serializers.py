@@ -88,7 +88,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         """Tạo danh sách thuộc tính của tất cả biến thể"""
         attributes = {}
         for variant in obj.productvariant_set.all(): # product_variant
-            for attr_value in variant.attributes.all(): # attribute_value
+            for attr_value in variant.attributes.all():  # attribute_value
                 attr_name = attr_value.attribute.name # lấy attribute name
                 if attr_name not in attributes: # kiểm tra attribute name đã tốn tại trong set chưa
                     attributes[attr_name] = set() # nếu chưa thì tạo mới

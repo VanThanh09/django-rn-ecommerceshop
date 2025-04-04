@@ -45,7 +45,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_yasg',
     'oauth2_provider',
-    # 'corsheaders',
 ]
 
 REST_FRAMEWORK = {
@@ -70,14 +69,6 @@ cloudinary.config(
     secure=True
 )
 
-# CORS_ALLOW_ALL_ORIGINS = True
-#
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:8000",  # Swagger UI
-#     "http://127.0.0.1:8000",
-#     "https://b1a2-115-78-235-98.ngrok-free.app",  # URL ngrok
-# ]
-
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -86,11 +77,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # "corsheaders.middleware.CorsMiddleware",
-    # "django.middleware.common.CommonMiddleware",
 ]
-
-
 
 ROOT_URLCONF = 'eshop.urls'
 

@@ -1,4 +1,4 @@
-from rest_framework import viewsets, generics, status
+from rest_framework import viewsets, generics, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -12,7 +12,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     serializer_class = serializers.UserSerializer
 
 
-# Return all product
+# Return list of all product
 class ProductViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Product.objects.filter(active=True)
     serializer_class = serializers.ProductSerializer
@@ -25,16 +25,18 @@ class ProductViewSet(viewsets.ViewSet, generics.ListAPIView):
     #     return Response(serializers.ProductVariantSerializer(product_variant, many=True).data, status=status.HTTP_200_OK)
 
 
-
+# Return detail of product ( all variant of product)
 class ProductDetailViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
     queryset = Product.objects.filter(active=True)
     serializer_class = serializers.ProductDetailSerializer
 
 
+# Return a store detail
 class StoreDetailViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
     queryset = Store.objects.filter(active=True)
     serializer_class = serializers.StoreSerializer
 
+    # Return all product of a store
     @action(methods=['get'], detail=True, url_path='products')
     def get_products(self, request, pk):
         products = self.get_object().product_set.filter(active=True)
