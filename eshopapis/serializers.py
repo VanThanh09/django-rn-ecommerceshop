@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from eshopapis.models import Product, Store, User, ProductVariant, AttributeValue, VerificationSeller
+from eshopapis.models import Product, Store, User, ProductVariant, AttributeValue, VerificationSeller, Category, \
+    Attribute
 
 
 # StoreSerializer trả ra thông tin cửa hàng
@@ -42,7 +43,6 @@ class UserSerializer(serializers.ModelSerializer):
 
 # # AttributeSerializer trả ra thông tin tên của attribute
 # class AttributeSerializer(serializers.ModelSerializer):
-#
 #     class Meta:
 #         model = Attribute
 #         fields = ['name']
@@ -57,6 +57,12 @@ class AttributeValueSerializer(serializers.ModelSerializer):
         fields = ['attribute_name', 'value']
 
 
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['id', 'name']
+
+
 # eProductVariantSerializr trả ra thông tin các biến thể của một product (thông tin chi tiết)
 class ProductVariantSerializer(serializers.ModelSerializer):
     attributes = AttributeValueSerializer(many=True)
@@ -68,7 +74,8 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
 
-        data['logo'] = instance.logo.url
+        if data['logo']:
+            data['logo'] = instance.logo.url
 
         return data
 
@@ -77,10 +84,11 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     productvariant_set = ProductVariantSerializer(many=True)
     store = StoreSerializer()
     attributes = serializers.SerializerMethodField()
+    category_set = CategorySerializer(many=True)
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'store', 'attributes', 'productvariant_set']
+        fields = ['id', 'name', 'description', 'store', 'category_set', 'attributes', 'productvariant_set']
 
     def get_attributes(self, obj):
         """Tạo danh sách thuộc tính của tất cả biến thể"""
@@ -101,8 +109,6 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     store = StoreSerializer()
 
-    # attribute_set = AttributeSerializer(many=True)
-
     class Meta:
         model = Product
         fields = ['id', 'name', 'description', 'store']
@@ -115,6 +121,9 @@ class VerificationSellerSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'status', 'created_date', 'reason', 'temp_store_name', 'temp_store_description',
                   'temp_store_logo']
         read_only_fields = ['user', 'created_date']
-        # extra_kwargs = {
-        #     'user': {'required': False}
-        # }
+
+
+class ProductCreateSerializer(serializers.ModelSerializer):
+   class Meta:
+       model = Product
+       fields = ['id', 'name', 'description', 'store', 'category_set', 'productvariant_set']

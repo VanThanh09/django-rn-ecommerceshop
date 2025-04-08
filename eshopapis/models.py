@@ -29,7 +29,7 @@ class VerificationSeller(models.Model):
     reason = models.TextField(null=True, blank=True)
     employee = models.ForeignKey(User,on_delete=models.PROTECT, related_name='employee', null=True, blank=True)
 
-    temp_store_name = models.CharField(max_length=255, unique=True)
+    temp_store_name = models.CharField(max_length=255)
     temp_store_description = models.TextField()
     temp_store_logo = CloudinaryField()
 
@@ -63,7 +63,7 @@ class Store(BaseModel):
 class Product(BaseModel):
     name = models.CharField(max_length=255)
     description = models.TextField()
-    store = models.ForeignKey(Store, on_delete=models.CASCADE)  # Sản phẩm thuộc cửa hàng nào
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, null=True, blank=True)  # Sản phẩm thuộc cửa hàng nào
 
     def __str__(self):
         return self.name
@@ -71,7 +71,7 @@ class Product(BaseModel):
 
 class Category(models.Model):
     name = models.CharField(max_length=255)
-    products = models.ManyToManyField('Product')  # Một danh mục chứa nhiều sản phẩm, sản phẩm tộc nhiều danh mục
+    products = models.ManyToManyField('Product', blank=True)  # Một danh mục chứa nhiều sản phẩm, sản phẩm tộc nhiều danh mục
 
     def __str__(self):
         return self.name
@@ -96,7 +96,7 @@ class ProductVariant(BaseModel):
     quantity = models.IntegerField(default=0)
     price = models.FloatField(default=0)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)  # Thuộc về sản phẩm nào
-    attributes = models.ManyToManyField('AttributeValue')  # Các giá trị thuộc tính của biến thể
+    attributes = models.ManyToManyField('AttributeValue', null=True, blank=True)  # Các giá trị thuộc tính của biến thể
 
     def __str__(self):
         return f"{self.product.name} - Tồn kho: {self.quantity} - Giá: {"{:,.0f}".format(self.price)} VND"
