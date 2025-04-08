@@ -7,6 +7,9 @@ router.register('products', views.ProductViewSet, basename='products')
 router.register('store', views.StoreDetailViewSet, basename='store')
 router.register('users', views.UserViewSet, basename='users')
 router.register('product', views.ProductDetailViewSet, basename='product')
+router.register('verification_seller', views.VerificationSellerViewSet, basename='verification_seller')
+router.register('action_verification', views.ActionVerificationViewSet, basename='action_verification')
+
 
 urlpatterns = [
     path('', include(router.urls)),

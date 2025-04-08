@@ -13,7 +13,32 @@ class User(AbstractUser):
         CUSTOMER = "CUS", _("CUSTOMER")  # Khách hàng
 
     avatar = CloudinaryField(null=True)
-    user_role = models.CharField(max_length=3, choices=UserRole)
+    user_role = models.CharField(max_length=3, choices=UserRole, default=UserRole.CUSTOMER)
+
+
+class VerificationSeller(models.Model):
+    class RequestStatus(models.TextChoices):
+        PEDING = 'PE', _("PENDING")
+        ACCEPT = 'AC', _("ACCEPT")
+        REJECTED = 'RE', _("REJECTED")
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='customer_request')
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+    status = models.CharField(max_length=2, choices=RequestStatus, default=RequestStatus.PEDING)
+    reason = models.TextField(null=True, blank=True)
+    employee = models.ForeignKey(User,on_delete=models.PROTECT, related_name='employee', null=True, blank=True)
+
+    temp_store_name = models.CharField(max_length=255, unique=True)
+    temp_store_description = models.TextField()
+    temp_store_logo = CloudinaryField()
+
+    class Meta:
+        unique_together=['status', 'user']
+
+    def __str__(self):
+        return str(self.status)
+
 
 
 class BaseModel(models.Model):

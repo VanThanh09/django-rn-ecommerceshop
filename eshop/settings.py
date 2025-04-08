@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-qv15!%6vr*)g@+b5^)kfcu391hc6e3t#g7uy%c)ks1b7g7w3-p'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
@@ -157,6 +157,6 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CLIENT_ID = 'Gx1OLloKdnAYa6m3KBqCXjMcURngb3zXYnixtbLd'
+CLIENT_ID = 'qaE2z1l5GTWs7HymF4VZWIomW7D1YIxjgn2vwJ7k'
 
-CLIENT_SECRET = 'Wzj6Tvd4PUKR2ktGZd0Pr2agvpuEc0sNhdFZ4djQzmAN4o6i7m5MofOLZwDpHKvrlpPlVB8voBYIyd89kUimsAcM5EdWYUgKB8JWS8XNEl7oi3fb1kyLfHWFSScNxSd9'
+CLIENT_SECRET = 'pUaOUWfAoOyAKeQKJ99hRNwfCJSybQgyc7XtFAeSL9Jppp1Md5zbpPEcdMx2Y4JCC6WmQUu5tOZeayV1nK7kycjYjRFUQcxYgUcpyb2x9CNaHnSioMB5l0nEjxtW5dc8'
