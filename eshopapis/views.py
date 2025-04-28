@@ -1,9 +1,10 @@
 from rest_framework import viewsets, generics, status, parsers, permissions
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 import cloudinary.api
 
-from eshopapis.models import Product, Store, User, VerificationSeller, ProductVariant, Attribute, AttributeValue
+from eshopapis.models import Product, Store, User, VerificationSeller, ProductVariant, Attribute, AttributeValue, Order, \
+    OrderDetail, CartDetail, Cart
 from eshopapis import serializers, perms, paginators
 
 
@@ -191,3 +192,304 @@ class ActionVerificationViewSet(viewsets.ViewSet):
             return Response({"detail": "Please give the reason for rejection"}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class OrderViewSet(viewsets.ViewSet,generics.CreateAPIView, generics.RetrieveUpdateDestroyAPIView):
+    queryset = Order.objects.all()
+    serializer_class = serializers.OrderCreateSerializer
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return serializers.OrderPartialSerializer
+        return super().get_serializer_class()
+
+    def get_permissions(self): # Initilize instance of permission class
+        if self.action == 'create':
+            self.permission_classes = [perms.IsCustomerOrSeller]
+        elif self.action in ['update', 'partial_update','retrieve']:
+            self.permission_classes = [perms.IsCustomerOrSeller, perms.OrderUpdatePermission]
+        elif self.action == 'destroy':
+            self.permission_classes = [perms.IsCustomerOrSeller,perms.OwnerOrderPermission]
+        return super().get_permissions()
+
+    def perform_create(self, serializer):
+        return serializer.save(customer=self.request.user)
+
+    """
+    Save Order to the database
+    Create new Order Detail and associate it with Order
+    """
+    def create(self, request, *args, **kwargs):
+       # A customer can not buy a product from its store
+       store = Store.objects.get(pk = request.data.get("store"))
+       if store.owner == request.user:
+           return Response(data={"error_msg" : "Can not by a product from your own store"},status=status.HTTP_400_BAD_REQUEST)
+       else:
+           products = request.data.pop('products')
+           serializer = self.get_serializer(data=request.data)
+           serializer.is_valid(raise_exception=True)
+           new_order = self.perform_create(serializer) # Get new order just created
+           headers = self.get_success_headers(serializer.data)
+
+           #   Create order detail
+           for p in products:
+               OrderDetail.objects.create(order=new_order,product_variant_id=p.get('product_variant_id'), quantity=p.get('quantity'))
+
+
+           return Response(serializers.OrderFullSerializer(new_order).data, status=status.HTTP_201_CREATED)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = serializers.OrderUpdateSerializer(instance=instance,data=request.data,partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save() #Choose whether update or create order
+        serializerResponse = serializers.OrderPartialSerializer(instance)
+        return Response(serializerResponse.data, status=status.HTTP_202_ACCEPTED)
+
+
+# UserOrder Function based view
+"""
+    Get list of order that user has ordered with the status as query param
+    Ex: user/orders/
+        user/orders/?status="PE"
+"""
+
+
+@api_view(['GET'])
+@permission_classes([perms.IsCustomerOrSeller])
+def userpurchase_list(request):
+    if request.query_params.get('status') == None:
+        orders = Order.objects.filter(customer=request.user)
+    else:
+        orders = Order.objects.filter(customer=request.user,
+                                      order_status=request.query_params.get('status'))
+    serializer = serializers.OrderFullSerializer(orders, many=True)
+
+    if not orders:
+        return Response({"msg": "Chưa có đơn hàng"}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# StoreOrder Function based view
+"""
+    Get list of order that a store have with the status as query param
+    Ex: store/order/
+        store/order/?status="PE"
+"""
+
+
+@api_view(['GET'])
+@permission_classes([perms.IsSeller])
+def storeorder_list(request):
+    if request.query_params.get('status') == None:
+        orders = Order.objects.filter(
+            store=request.user.store.values_list('id', flat=True)[0])  # Getting id of request.user's store
+    else:
+        orders = Order.objects.filter(store=request.user.store.values_list('id', flat=True)[0],
+                                      order_status=request.query_params.get('status'))
+    serializer = serializers.StoreOrderSerializer(orders, many=True)
+
+    if not orders:
+        return Response({"msg": "Chưa có đơn hàng"}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+"""
+    Get all product in the cart in format of basic information
+    Use case: When user hover the cart item
+"""
+
+
+def change_cart_detail_active(cart):
+    deactive_products = cart.products.filter(active=False)
+    for p in deactive_products:
+        cart_detail = cart.cartdetail_set.get(product_variant=p)
+        cart_detail.active = False
+        cart_detail.save()
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_products_in_cart(request):
+    cart = Cart.objects.get(user=request.user)
+    if cart.total_quantity == 0:
+        return Response(data={'msg': 'No product in cart'}, status=status.HTTP_200_OK)
+    # Update if product_variant still active or not
+    change_cart_detail_active(cart=cart)
+    serializer = serializers.CartSerializer(cart)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+"""
+    Get list product detail in cart
+    Use case: When user want to see what they have in cart
+"""
+
+
+@api_view(['GET'])
+@permission_classes([perms.IsCustomerOrSeller])
+def get_products_detail_in_cart(request):
+    stores = set()
+    cart = request.user.cart
+    # Check exist deactive product
+    change_cart_detail_active(cart=cart)
+    # Add distinct store in set
+    for pvar in cart.products.all():
+        stores.add(pvar.product.store)
+    if not stores:
+        return Response(data={"msg": "Empty Cart !!!"}, status=status.HTTP_200_OK)
+    # Response data to client
+    data = []
+    for store in stores:
+        products_same_store = {}
+        store_serializer = serializers.CartStoreSerializer(store)
+        products_same_store['store'] = store_serializer.data
+        # Getting list of product from a store
+        # Indeed the product_variant variable just a cart detail with filter condition
+        product_variants = cart.cartdetail_set.filter(product_variant__product__store=store)
+        pv_serializer = serializers.CartProductVariantSerializer(product_variants, many=True)
+        products_same_store['product_variants'] = pv_serializer.data
+        data.append(products_same_store)
+
+    return Response(data=data, status=status.HTTP_200_OK)
+
+
+# Need to do get all cart detail in a cart group by shop
+# Chon san pham -> Bam nut mua hang --> Trang thanh toan -> Bam nut dat hang -> Tao order
+
+"""
+    API handling process when user tick products to checkout
+    Xử lý những cart detail mà người  dùng tick 
+    Request body 
+    {
+        "selected_products": [
+        {
+            quantity: int,
+            price: int
+        },
+         {
+            quantity: int,
+            price: int
+        }
+
+        ]
+    }
+"""
+
+
+# URL cart/tick-products/ chua biet co dung hay khong vi tren front end co the xu ly tong tien va tong san pham
+@api_view(['POST'])
+@permission_classes([perms.IsCustomerOrSeller])
+def handle_tick_products(request):
+    list_selected_product = request.data.get('selected_products')
+    total_products = len(list_selected_product)
+    total_price = 0
+    for p in list_selected_product:
+        total_price += (p.get('price') * p.get('quantity'))
+
+    return Response(data={'total_price': total_price,
+                          'total_products': total_products
+                          }, status=status.HTTP_200_OK)
+
+
+# Payment process assume user sending selected cart item
+# URL /checkout/
+"""
+    Request body {
+        "list_product_variant": [1,2,3....],
+        "list_cart_detail": [1,2,3]
+    }
+
+    Response
+    {
+        "user" : {
+        "fullname" str,
+        "address": { }
+        },
+        cart_items: [
+            {
+             "store" : {
+                 "id":int, 
+                 "name"
+             },
+             product_variants: [
+             {
+
+             }
+             ],
+             'total_quantity': int,
+             'total_price': int
+            }
+        ],
+        payment_method: ['Momo', 'Thanh toan khi nhan hang']
+        total_price: int
+    }
+"""
+
+
+def store_distinct(data):
+    stores = set()
+    for pk in data:
+        stores.add(ProductVariant.objects.get(pk=pk).product.store)
+    return stores
+
+
+@api_view(['POST'])
+@permission_classes([perms.IsCustomerOrSeller])
+def checkout(request):
+    stores = store_distinct(request.data.get('list_product_variant'))
+    if not stores:
+        return Response(data={"msg": "Empty"}, status=status.HTTP_200_OK)
+    # Response data to client
+    data = {}
+    user = {
+        "fullname": request.user.first_name + " " + request.user.last_name,
+        "address": request.user.address
+    }
+    data['user'] = user
+    data['cart_items'] = []
+    cart_detail_set = request.data.get('list_cart_detail')
+    for store in stores:
+        products_same_store = {}
+        store_serializer = serializers.CartStoreSerializer(store)
+        products_same_store['store'] = store_serializer.data
+        # Getting list of product from a store
+        # Indeed the product_variant variable just a cart detail with filter condition
+        product_variants = list(
+            CartDetail.objects.filter(pk__in=cart_detail_set, product_variant__product__store=store))
+        pv_serializer = serializers.CartProductVariantSerializer(product_variants, many=True)
+        products_same_store['product_variants'] = pv_serializer.data
+        total_price = 0
+        for p in products_same_store['product_variants']:
+            total_price += p.get('total_price')
+        total_quantity = len(products_same_store['product_variants'])
+        products_same_store['total_price'] = total_price
+        products_same_store['total_quantity'] = total_quantity
+        data['cart_items'].append(products_same_store)
+
+        data['payment_method'] = ['ONLINE', 'OFFLINE']
+        total_price = 0
+        for item in data['cart_items']:
+            total_price += item.get('total_price')
+        data['total_price'] = total_price
+
+    return Response(data=data, status=status.HTTP_200_OK)
+
+
+# CartDetail Create Partial-Update Delete
+class CartDetailViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView, generics.DestroyAPIView):
+    queryset = CartDetail.objects.all()
+    serializer_class = serializers.CartDetailSerializer
+    permission_classes = [perms.IsCustomerOrSeller, perms.OwnerCartDetailPermission]
+
+    def perform_create(self, serializer):
+        serializer.save(cart=self.request.user.cart)
+
+    def perform_destroy(self, instance):
+        # Before delete a cart detail cart.total_quantity --
+        instance.cart.total_quantity -= 1
+        instance.cart.save()
+        instance.delete()
+
+# Done cart/ , cart-basic-info, checkout
+# Create order, orderDetail for each shop, after that remove all the from cart

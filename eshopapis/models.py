@@ -9,13 +9,15 @@ from django.utils.translation import gettext_lazy as _
 class User(AbstractUser):
     # Các vài trò người dùng trong hệ thống
     class UserRole(models.TextChoices):
-        ADMIN = "AD", _("ADMIN")  # Người quản trị hệ thống
-        EMPLOYEE = "EM", _("EMPLOYEE")  # Nhân viên của sàn giao dịch
-        SELLER = "SE", _("SELLER")  # Người dùng sau khi đăng kí là người bán hàng trên sàn
-        CUSTOMER = "CUS", _("CUSTOMER")  # Khách hàng
+        ADMIN = "AD", _("ADMIN") # Người quản trị hệ thống
+        EMPLOYEE = "EM", _("EMPLOYEE") # Nhân viên của sàn giao dịch
+        SELLER = "SE", _("SELLER") # Người dùng sau khi đăng kí là người bán hàng trên sàn
+        CUSTOMER = "CUS", _("CUSTOMER") # Khách hàng
 
-    avatar = CloudinaryField()
+    avatar = CloudinaryField(null=True)
     user_role = models.CharField(max_length=3, choices=UserRole, default=UserRole.CUSTOMER)
+    address = models.JSONField(null=True, default=dict)
+    phone_number = models.CharField(max_length=10,null=True,unique=True)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -109,63 +111,73 @@ class ProductVariant(BaseModel):
 
 class Order(models.Model):
     class PaymentMethod(models.TextChoices):
-        ONLINE = 'ON', _("ONLINE")  # Thanh toán online ngay khi bắt đầu mua
-        OFFLINE = 'OF', _("OFFLINE")  # Thanh toán sau khi nhận được hàng
+        ONLINE = 'ON', _("ONLINE") # Thanh toán online ngay khi bắt đầu mua
+        OFFLINE = 'OF', _("OFFLINE") # Thanh toán sau khi nhận được hàng
 
     class OrderStatus(models.TextChoices):
-        PENDING = 'PE', _("PENDING")  # Khi sản phẩm bắt được khách hàng xác nhận mua
-        SUCCESS = 'SU', _("SUCCESS")  # Sau khi khách hàng xác nhận đã nhận được hàng
-        SHIPPING = 'SH', _("SHIPPING")  # Sản phẩm đã rời khỏi kho của người bán
-        CANCEL = 'CA', _("CANCEL")  # Khách hàng hủy đơn khi đang ở PENDING, khách không nhận hàng, ....
+        PENDING = 'PE', _("PENDING") # Khi sản phẩm bắt được khách hàng xác nhận mua
+        SUCCESS = 'SU', _("SUCCESS") # Sau khi khách hàng xác nhận đã nhận được hàng
+        SHIPPING = 'SH', _("SHIPPING") # Sản phẩm đã rời khỏi kho của người bán
+        CANCEL = 'CA', _("CANCEL") # Khách hàng hủy đơn khi đang ở PENDING, khách không nhận hàng, ....
 
-    created_date = models.DateTimeField(auto_now_add=True)
-    payment_method = models.CharField(max_length=2, choices=PaymentMethod)  # Phương thức thanh toán
-    order_status = models.CharField(max_length=2, choices=OrderStatus)  # Trạng thái đơn hàng
-    total_price = models.FloatField(default=0)
-    customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    created_date=models.DateTimeField(auto_now_add=True)
+    payment_method=models.CharField(max_length=2, choices=PaymentMethod) # Phương thức thanh toán
+    order_status=models.CharField(max_length=2, choices=OrderStatus) # Trạng thái đơn hàng
+    total_price=models.FloatField(default=0)
+    customer=models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="customer_orders")
+    store = models.ForeignKey(Store, on_delete=models.SET_NULL, null=True, related_name="store_orders")
 
 
 class OrderDetail(models.Model):
-    quantity = models.IntegerField(default=1)
-    unit_price = models.FloatField()
-    order = models.ForeignKey(Order, on_delete=models.CASCADE)  # Thuộc order nào
-    product = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True)  # Biến thể sản phẩm nào
+    quantity=models.IntegerField(default=1)
+    order=models.ForeignKey(Order, on_delete=models.CASCADE) # Thuộc order nào
+    product_variant=models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True) # Biến thể sản phẩm nào
 
 
 class Cart(models.Model):
-    active = models.BooleanField(
-        default=True)  # Khi sản phẩm hết số lượng, active=False, không thể mua sản phẩm này dù con trong giỏ hàng
-    quantity = models.IntegerField(default=1)
-    product = models.ForeignKey(ProductVariant, on_delete=models.CASCADE)  # Biến thể sản phẩm nào
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-
-
-class Interaction(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)  # User nào tương tác
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)  # Tương tác với sản phẩm nào
-
-    class Meta:
-        abstract = True
-
-
-class Comment(Interaction):
-    content = models.TextField()  # Nội dung bình luận
-    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE,
-                               related_name="replies")  # Bình luận cha, trả lời bình luận khác, nếu là bình luận chính của sản phẩm thì null
-
-    def __str__(self):
-        return self.content
+    total_quantity = models.IntegerField(default=0)
+    user=models.OneToOneField(User, on_delete=models.CASCADE)
+    products = models.ManyToManyField(ProductVariant, through='CartDetail', related_name="carts")
 
 
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
-class Rating(Interaction):
-    rating = models.IntegerField(
-        validators=[MinValueValidator(0), MaxValueValidator(5)])  # Đánh giá sao ( tối thiểu 1s tối đa 5s)
+class CartDetail(models.Model):
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE)
+    product_variant = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True)
+    quantity = models.IntegerField(validators=[MinValueValidator(0)],default=0)
+    active = models.BooleanField(default=True)  # Khi sản phẩm hết số lượng,hoặc bị xóa ,active=False, không thể mua sản phẩm này dù con trong giỏ hàng
 
+
+class CommentUser(models.Model):
+    user = models.ForeignKey('User', on_delete=models.CASCADE, null=False)
+    content=models.TextField() # Nội dung bình luận
+    product_variant = models.ForeignKey("ProductVariant", on_delete=models.CASCADE, null=False)
+    rating = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)],default=5)
+
+
+class CommentSeller(models.Model):
+    seller = models.ForeignKey('User', on_delete=models.CASCADE, null=False)
+    content=models.TextField() # Nội dung bình luận
+    rep_cmt = models.ForeignKey('CommentUser', null=False, on_delete=models.CASCADE)
+
+
+class Rating(models.Model):
+    star = models.SmallIntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)], null =False)
+    product = models.ManyToManyField('Product', through="ProductRating", related_name="ratings")
     def __str__(self):
-        return str(self.rating)
+        return f"{self.star} star"
+
+
+class ProductRating(models.Model):
+    rating_star = models.ForeignKey(Rating, null = False, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, null = False, on_delete=models.CASCADE)
+    count = models.IntegerField(default=0)
+    class Meta:
+        unique_together =  ('product', 'rating_star',)
+    def __str__(self):
+        return f"{self.product.name} has {self.count} for {self.rating_star.star} star"
 
 
 class Conversation(models.Model):

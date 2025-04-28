@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from eshopapis.models import Product, Store, User, ProductVariant, AttributeValue, VerificationSeller, Category, \
-    Attribute
+    Attribute, CartDetail, Cart, Order, OrderDetail
 
 
 # StoreSerializer trả ra thông tin cửa hàng
@@ -106,7 +106,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         return {key: list(values) for key, values in attributes.items()}
 
 
-# ProductSerializer trả ra thông tin product + các biến thể ( variant)
+# ProductSerializer trả ra thông tin product
 class ProductSerializer(serializers.ModelSerializer):
     store = serializers.CharField(source='store.name')
     price = serializers.SerializerMethodField()
@@ -140,3 +140,146 @@ class ProductCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ['id', 'name', 'description', 'store', 'category_set', 'productvariant_set']
+
+
+
+# Same with ProductVariantSerializer but add with product name
+class ProductVariantWithProductNameSerializer(serializers.ModelSerializer):
+    attributes = AttributeValueSerializer(many=True)
+    product_name = serializers.StringRelatedField(source="product.name")
+    class Meta:
+        model=ProductVariant
+        fields=['id', 'product_name' ,'logo',  'price', 'attributes']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        data['logo'] = instance.logo.url
+
+        return data
+
+
+# Serializer of OrderDetail using in OrderFullSerializer
+class OrderDetailSerializer(serializers.ModelSerializer):
+    product_variant = ProductVariantWithProductNameSerializer(read_only=True)
+    class Meta:
+        model = OrderDetail
+        fields = ['product_variant','quantity']
+
+# Serializer for creating order
+class OrderCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ['store', 'order_status','payment_method','total_price']
+
+# Serializer only update order status of Order
+class OrderUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ['order_status']
+
+# Serializer only serialize every things but basic form
+class OrderPartialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = "__all__"
+
+# Serializer for full Response Order
+class OrderFullSerializer(serializers.ModelSerializer):
+    products = OrderDetailSerializer(read_only=True,many=True, source="orderdetail_set")
+    store = StoreSerializer(read_only=True)
+
+    class Meta:
+        model = Order
+        fields = ['id','customer','products','store','total_price','order_status','created_date']
+
+
+# Serializer Response for store/orders
+class CustomerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id','username']
+
+class StoreOrderSerializer(serializers.ModelSerializer):
+    products = OrderDetailSerializer(read_only=True,many=True, source="orderdetail_set")
+    order_id = serializers.IntegerField(source='id')
+    customer = CustomerSerializer(read_only=True)
+    class Meta:
+        model = Order
+        fields = ['order_id','customer','products','total_price','order_status','created_date']
+
+# Cart Serializer
+# Support serializer for serializing cart
+class CartProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = ['id', 'name']
+        read_only_fields = ('id','name',)
+
+class CartBasicProductVariantSerializer(serializers.ModelSerializer):
+    product = CartProductSerializer(read_only=True)
+    class Meta:
+        model = ProductVariant
+        fields = ['product', 'logo', 'price']
+        read_only_fields = ('logo','price')
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['logo'] = instance.logo.url
+        return data
+
+# I override this to remove the info about the owner of the store
+class CartStoreSerializer(StoreSerializer):
+    class Meta(StoreSerializer.Meta):
+        fields = ['id', 'name']
+        read_only_fields = ('id', 'name',)
+
+
+class CartProductVariantSerializer(serializers.ModelSerializer):
+    product_variant = ProductVariantWithProductNameSerializer(read_only=True)
+    cart_detail = serializers.IntegerField(source='id')
+    total_price = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CartDetail
+        fields = ['cart_detail','product_variant','active','quantity','total_price']
+        read_only_fields = ('active','quantity','cart_detail',)
+
+    def get_total_price(self,obj):
+        return obj.product_variant.price * obj.quantity
+
+
+class CartSerializer(serializers.ModelSerializer):
+    product_variants = CartBasicProductVariantSerializer(many=True,source='products',read_only=True)
+    class Meta:
+        model = Cart
+        fields = ['id','product_variants','total_quantity']
+        read_only_fields = ('id', 'total_quantity')
+
+
+# CartDetailSerializer
+class CartDetailSerializer(serializers.ModelSerializer):
+    cart_total_quantity = serializers.IntegerField(source='cart.total_quantity', read_only=True)
+    class Meta:
+        model = CartDetail
+        fields = ['id','product_variant', 'quantity','active','cart','cart_total_quantity']
+        read_only_fields = ('id','cart',)
+
+    # Orverride create method that check if product_variant is already exist then just update
+    def create(self, validated_data):
+        """
+        {
+            cart = cart,
+            product_variant = 1,
+            quantity = 1
+        }
+        """
+        cart = validated_data.pop('cart')
+        cartDetail, created = CartDetail.objects.get_or_create(cart=cart,product_variant=validated_data.get('product_variant'))
+        cartDetail.quantity += validated_data.get('quantity')
+        if created:
+            cart.total_quantity += 1
+        cartDetail.save()
+        cart.save()
+
+        return cartDetail
