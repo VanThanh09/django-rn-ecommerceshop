@@ -1,10 +1,10 @@
-from rest_framework import viewsets, generics, status
+from rest_framework import viewsets, generics, status, parsers, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 import cloudinary.api
 
 from eshopapis.models import Product, Store, User, VerificationSeller, ProductVariant, Attribute, AttributeValue
-from eshopapis import serializers, perms
+from eshopapis import serializers, perms, paginators
 
 
 # Hàm để xóa ảnh từ Cloudinary
@@ -23,12 +23,18 @@ def delete_image_from_cloudinary(image_url):
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     queryset = User.objects.filter(is_active=True).all()
     serializer_class = serializers.UserSerializer
+    parser_classes = [parsers.MultiPartParser]
+
+    @action(methods=['get'], url_path='current-user', detail=False, permission_classes=[permissions.IsAuthenticated])
+    def get_current_user(self, request):
+        return Response(serializers.UserSerializer(request.user).data)
 
 
 # Return list of all product
 class ProductViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Product.objects.filter(active=True)
     serializer_class = serializers.ProductSerializer
+    pagination_class = paginators.ProductPage
 
 
 # Return detail of product ( all variant of product)
@@ -68,33 +74,34 @@ class ProductCreateViewSet(viewsets.ViewSet, generics.CreateAPIView):
 
         serializer = self.get_serializer(data=data)  # bọc dữ liệu vào serializer để kiểm tra
         serializer.is_valid(raise_exception=True)  # Kiểm tra dữ liệu hợp lệ không
-        product = serializer.save()  # Hợp lệ rồi thì lưu dữ liệu ( create product)
+        product = serializer.save()  # Hợp lệ rồi thì lưu dữ liệu (create product)
 
-        variants = data.pop("variants")  # Lấy toàn bộ variants ra
-        for variant in variants:
-            attributes = []
+        if data["variants"]:
+            variants = data.pop("variants")  # Lấy toàn bộ variants ra
+            for variant in variants:
+                attributes = []
 
-            attrs = variant.pop("attributes") # lấy từng attribute value ra để lưu
-            for attr in attrs:
-                attr_obj, _ = Attribute.objects.get_or_create(
-                    name=attr["name"])  # return (<Attribute: name>, True/False)
-                attr_value, _ = AttributeValue.objects.get_or_create(
-                    value=attr["value"],
-                    attribute=attr_obj,
-                )  # return (<AttributeValue: value>, True/False)
+                attrs = variant.pop("attributes") # lấy từng attribute value ra để lưu
+                for attr in attrs:
+                    attr_obj, _ = Attribute.objects.get_or_create(
+                        name=attr["name"])  # return (<Attribute: name>, True/False)
+                    attr_value, _ = AttributeValue.objects.get_or_create(
+                        value=attr["value"],
+                        attribute=attr_obj,
+                    )  # return (<AttributeValue: value>, True/False)
 
-                attributes.append(attr_value.id)
+                    attributes.append(attr_value.id)
 
-            product_variant = ProductVariant.objects.create(
-                quantity=variant["quantity"],
-                price=variant["price"],
-                product=product,
-            )
-            product_variant.attributes.set(attributes)
-
-            product.productvariant_set.add(product_variant)
-
-        product.save()
+                product_variant = ProductVariant.objects.create(
+                    quantity=variant["quantity"],
+                    price=variant["price"],
+                    product=product,
+                )
+                product_variant.attributes.set(attributes)
+            #
+            #     product.productvariant_set.add(product_variant)
+            #
+            # product.save()
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -133,7 +140,6 @@ class VerificationSellerViewSet(viewsets.ViewSet, generics.ListCreateAPIView):
             image_url = obj.temp_store_logo.url
             # Gọi hàm xóa ảnh từ Cloudinary
             delete_image_from_cloudinary(image_url)
-            obj.delete()
         if VerificationSeller.objects.filter(user=user, status='PE').exists():
             return Response({"detail": "The request already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -145,18 +151,19 @@ class VerificationSellerViewSet(viewsets.ViewSet, generics.ListCreateAPIView):
 
 
 # PATCH API for employee accept or reject the request become seller
-class ActionVerificationViewSet(viewsets.ViewSet, generics.RetrieveUpdateAPIView):
+class ActionVerificationViewSet(viewsets.ViewSet):
     queryset = VerificationSeller.objects.filter(status='PE')
     serializer_class = serializers.VerificationSellerSerializer
     permission_classes = [perms.IsEmployee]
 
     @action(methods=['patch'], url_path='accept', detail=True)
-    def accept_verification(self, request, pk):
+    def accept_verification(self, request, pk=None):
         obj = self.get_object()
         obj.status = VerificationSeller.RequestStatus.ACCEPT
         obj.reason = request.data.get('reason', None)
         obj.employee = request.user
         obj.save()
+
         # Create new store if accept request
         Store.objects.create(
             name=obj.temp_store_name,
@@ -164,16 +171,23 @@ class ActionVerificationViewSet(viewsets.ViewSet, generics.RetrieveUpdateAPIView
             logo=obj.temp_store_logo,
             owner=obj.user
         )
+
         # Change user_role to SELLER
         obj.user.user_role = User.UserRole.SELLER
         obj.user.save()
         return Response(serializers.VerificationSellerSerializer(obj).data, status=status.HTTP_200_OK)
 
     @action(methods=['patch'], url_path='reject', detail=True)
-    def reject_verification(self, request, pk):
+    def reject_verification(self, request, pk=None):
         obj = self.get_object()
-        obj.status = VerificationSeller.RequestStatus.REJECTED
-        obj.reason = request.data.get('reason', None)
-        obj.employee = request.user
-        obj.save()
-        return Response(serializers.VerificationSellerSerializer(obj).data, status=status.HTTP_200_OK)
+        reason = request.data.get('reason')
+        if reason:
+            obj.status = VerificationSeller.RequestStatus.REJECTED
+            obj.reason = request.data.get('reason', None)
+            obj.employee = request.user
+            obj.save()
+            return Response(serializers.VerificationSellerSerializer(obj).data, status=status.HTTP_200_OK)
+        else:
+            return Response({"detail": "Please give the reason for rejection"}, status=status.HTTP_400_BAD_REQUEST)
+
+

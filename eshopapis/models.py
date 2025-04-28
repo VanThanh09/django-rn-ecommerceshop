@@ -1,3 +1,5 @@
+from email.policy import default
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from cloudinary.models import CloudinaryField
@@ -12,8 +14,11 @@ class User(AbstractUser):
         SELLER = "SE", _("SELLER")  # Người dùng sau khi đăng kí là người bán hàng trên sàn
         CUSTOMER = "CUS", _("CUSTOMER")  # Khách hàng
 
-    avatar = CloudinaryField(null=True)
+    avatar = CloudinaryField()
     user_role = models.CharField(max_length=3, choices=UserRole, default=UserRole.CUSTOMER)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
 
 
 class VerificationSeller(models.Model):
@@ -27,18 +32,17 @@ class VerificationSeller(models.Model):
     updated_date = models.DateTimeField(auto_now=True)
     status = models.CharField(max_length=2, choices=RequestStatus, default=RequestStatus.PEDING)
     reason = models.TextField(null=True, blank=True)
-    employee = models.ForeignKey(User,on_delete=models.PROTECT, related_name='employee', null=True, blank=True)
+    employee = models.ForeignKey(User, on_delete=models.PROTECT, related_name='employee', null=True, blank=True)
 
     temp_store_name = models.CharField(max_length=255)
     temp_store_description = models.TextField()
     temp_store_logo = CloudinaryField()
 
     class Meta:
-        unique_together=['status', 'user']
+        unique_together = ['status', 'user']
 
     def __str__(self):
         return str(self.status)
-
 
 
 class BaseModel(models.Model):
@@ -71,7 +75,8 @@ class Product(BaseModel):
 
 class Category(models.Model):
     name = models.CharField(max_length=255)
-    products = models.ManyToManyField('Product', blank=True)  # Một danh mục chứa nhiều sản phẩm, sản phẩm tộc nhiều danh mục
+    products = models.ManyToManyField('Product',
+                                      blank=True)  # Một danh mục chứa nhiều sản phẩm, sản phẩm tộc nhiều danh mục
 
     def __str__(self):
         return self.name
@@ -96,7 +101,7 @@ class ProductVariant(BaseModel):
     quantity = models.IntegerField(default=0)
     price = models.FloatField(default=0)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)  # Thuộc về sản phẩm nào
-    attributes = models.ManyToManyField('AttributeValue', null=True, blank=True)  # Các giá trị thuộc tính của biến thể
+    attributes = models.ManyToManyField('AttributeValue', blank=True)  # Các giá trị thuộc tính của biến thể
 
     def __str__(self):
         return f"{self.product.name} - Tồn kho: {self.quantity} - Giá: {"{:,.0f}".format(self.price)} VND"
@@ -161,3 +166,27 @@ class Rating(Interaction):
 
     def __str__(self):
         return str(self.rating)
+
+
+class Conversation(models.Model):
+    users = models.ManyToManyField(User, related_name='conversations')
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Conversation between {', '.join([user.username for user in self.users.all()])}"
+
+
+class Message(models.Model):
+    class MessageType(models.TextChoices):
+        TEXT = "TE", _('TEXT')
+        IMAGE = "IM", _('IMAGE')
+
+    conversasion = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_message')
+    content = models.TextField()
+    created_date = models.DateTimeField(auto_now_add=True)
+    content_type = models.CharField(max_length=2, choices=MessageType)
+
+    def __str__(self):
+        return self.content

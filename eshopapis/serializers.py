@@ -81,6 +81,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
+    """Xem chi tiết toàn bộ thông tin của một sản phẩm"""
     productvariant_set = ProductVariantSerializer(many=True)
     store = StoreSerializer()
     attributes = serializers.SerializerMethodField()
@@ -107,11 +108,23 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 
 # ProductSerializer trả ra thông tin product + các biến thể ( variant)
 class ProductSerializer(serializers.ModelSerializer):
-    store = StoreSerializer()
+    store = serializers.CharField(source='store.name')
+    price = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'store']
+        fields = ['id', 'name', 'description', 'logo', 'store', 'price']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        data['logo'] = instance.logo.url
+
+        return data
+
+    def get_price(self, obj):
+        min_price = obj.productvariant_set.order_by('price').first().price
+        return str("{:,.0f}".format(min_price))
 
 
 # ProductSerializer thông tin chờ xác thực seller
@@ -124,6 +137,6 @@ class VerificationSellerSerializer(serializers.ModelSerializer):
 
 
 class ProductCreateSerializer(serializers.ModelSerializer):
-   class Meta:
-       model = Product
-       fields = ['id', 'name', 'description', 'store', 'category_set', 'productvariant_set']
+    class Meta:
+        model = Product
+        fields = ['id', 'name', 'description', 'store', 'category_set', 'productvariant_set']

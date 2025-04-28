@@ -12,8 +12,6 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 
-from django.conf.global_settings import AUTH_USER_MODEL
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -42,9 +40,16 @@ INSTALLED_APPS = [
     'eshopapis.apps.EshopapisConfig',
 
     # other framework
-    'rest_framework',
-    'drf_yasg',
-    'oauth2_provider',
+    'rest_framework',  # Django REST Framework - used for building robust RESTful APIs
+    'drf_yasg',  # Yet Another Swagger Generator, generates interactive Swagger documentation for the API
+    'oauth2_provider',  # OAuth2 Provider - enables OAuth2 authentication for securing API access
+    # django-allauth - handles user authentication, registration, and social logins (Google, Facebook)
+    'allauth',  # Core của allauth
+    'allauth.account',  # Xác thực qua email/password
+    'allauth.socialaccount',  # Kịch hoạt đăng nhập mạng xã hội
+    'allauth.socialaccount.providers.google',  # Đăng nhập bằng gg
+    'allauth.socialaccount.providers.facebook',  # đăng nhập bằng fb
+
 ]
 
 REST_FRAMEWORK = {
@@ -57,9 +62,32 @@ OAUTH2_PROVIDER = {
     'DEFAULT_AUTHENTICATION_CLASSES': ('oauth2_provider.contrib.rest_framework.OAuth2Authentication',)
 }
 
-import cloudinary
+# Provider specific settings
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        # For each OAuth based provider, either add a ``SocialApp``
+        # (``socialaccount`` app) containing the required client
+        # credentials, or list them here:
+        'APP': {
+            'client_id': '845623906398-asd5ud30cpg573vroa0b28at336eiakk.apps.googleusercontent.com',
+            'secret': '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',
+            'key': ''
+        },
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
+
+LOGIN_REDIRECT_URL = '/accounts/google/login/'
+LOGOUT_REDIRECT_URL = '/accounts/google/login/'
+
 import cloudinary.uploader
-from cloudinary.utils import cloudinary_url
 
 # Configuration
 cloudinary.config(
@@ -77,6 +105,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
+    # Add the account middleware:
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = 'eshop.urls'
@@ -92,9 +123,18 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.request',
             ],
         },
     },
+]
+
+AUTHENTICATION_BACKENDS = [
+    # Needed to log in by username in Django admin, regardless of `allauth`
+    'django.contrib.auth.backends.ModelBackend',
+
+    # `allauth` specific authentication methods, such as login by email
+    'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
 WSGI_APPLICATION = 'eshop.wsgi.application'
@@ -157,6 +197,6 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CLIENT_ID = 'qaE2z1l5GTWs7HymF4VZWIomW7D1YIxjgn2vwJ7k'
+CLIENT_ID = 'bKbCdqsy9J5Gm2wv9I0Gjz5RRdelnDKMHjgXBSwU'
 
-CLIENT_SECRET = 'pUaOUWfAoOyAKeQKJ99hRNwfCJSybQgyc7XtFAeSL9Jppp1Md5zbpPEcdMx2Y4JCC6WmQUu5tOZeayV1nK7kycjYjRFUQcxYgUcpyb2x9CNaHnSioMB5l0nEjxtW5dc8'
+CLIENT_SECRET = 'XPGdUEqjDIu1lLgb3CPEkqwYYRwZaKuMAoapbe8Q9AJPK5pPTi15EGzCHh69uvduBUdcbIX0No3oW8brFELKyxCBwYoEVjMIuM6wTnY7G4uXLvNrsh4aCwJxWdQyCJCa'
