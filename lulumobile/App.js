@@ -1,34 +1,58 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
-import { StyleSheet, Text, View } from 'react-native';
-import Home from './components/Home/Home';
-import Register from './components/User/Register';
-import Login from './components/User/Login';
+import { Platform, StatusBar, StyleSheet, Text, View } from 'react-native';
+import Home from './components/home/Home';
+import Register from './components/user/Register';
+import Login from './components/user/Login';
 import { useContext, useReducer } from 'react';
 import MyUserReducers from './reducers/MyUserReducers';
 import { MyDispatchContext, MyUserContext } from './configs/MyContext';
 import { Icon } from 'react-native-paper';
-import Profile from './components/User/Profile';
+import Profile from './components/user/Profile';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+const Stack = createNativeStackNavigator();
+function MyStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen name="index" component={Profile} options={{ title: "Tài khoản", headerShown: false }} />
+      <Stack.Screen name="login" component={Login} options={{ title: "Đăng nhập" }} />
+      <Stack.Screen name="register" component={Register} options={{ title: "Đăng ký" }} />
+    </ Stack.Navigator>
+  )
+}
 
 const Tab = createBottomTabNavigator();
 function MyTabs() {
   const user = useContext(MyUserContext);
-
   return (
     <Tab.Navigator screenOptions={{ headerShown: false, tabBarStyle: styles.tabBarStyle, tabBarHideOnKeyboard: true }}>
       <Tab.Screen name="home" component={Home} options={{ tabBarIcon: () => <Icon size={30} source="home" /> }} />
-
+      <Tab.Screen
+        name="account"
+        component={MyStack}
+        options={{ tabBarIcon: () => <Icon size={30} source="account" /> }}
+        listeners={({ navigation }) => ({
+          tabPress: e => {
+            // Ngăn mặc định
+            e.preventDefault();
+            // Reset lại stack navigator để luôn quay về "index"
+            navigation.navigate('account', {
+              screen: 'index',
+            });
+          },
+        })}
+      />
       {user === null ? <>
-        <Tab.Screen name="login" component={Login} options={{ tabBarIcon: () => <Icon size={30} source="account" /> }} />
-        <Tab.Screen name="register" component={Register} options={{ tabBarIcon: () => <Icon size={30} source="account-plus" /> }} />
+
       </> : <>
-        <Tab.Screen name="account" component={Profile} options={{ tabBarIcon: () => <Icon size={30} source="account" /> }} />
+
       </>}
     </Tab.Navigator>
   )
 }
 
-export default function App() {
+const App = () => {
   const [user, dispatch] = useReducer(MyUserReducers, null)
 
   return (
@@ -42,6 +66,8 @@ export default function App() {
   );
 }
 
+export default App;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -52,5 +78,5 @@ const styles = StyleSheet.create({
   tabBarStyle: {
     borderTopWidth: 1,
     backgroundColor: '#fff',
-  },
+  }
 });

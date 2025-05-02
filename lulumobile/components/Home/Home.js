@@ -1,8 +1,7 @@
-import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context";
+import { FlatList, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native"
 import { useEffect, useState } from "react";
 import Apis, { endpoints } from "../../configs/Apis";
-import productCard from "../ui/ProductCard"
+import ProductCard from "../ui/homePage/ProductCard";
 
 function Home() {
     const [products, setProducts] = useState([]);
@@ -17,20 +16,25 @@ function Home() {
     }, []);
 
     return (
-        <SafeAreaView>
-            <ScrollView>
-                <View>
-                    <Text style={[styles.baseText, styles.titleText,]}>Xin chào</Text>
-                </View>
-                <View>
-                    <FlatList
-                        data={products}
-                        keyExtractor={item => item.id}
-                        numColumns={2}
-                        renderItem={({ item }) => <View style={{ width: '50%', padding: 5 }}> {productCard(item)} </View>} />
-                </View>
-            </ScrollView>
-        </SafeAreaView>
+        <View style={{ paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0 }}>
+            <View>
+                <Text style={[styles.baseText, styles.titleText,]}>Xin chào</Text>
+            </View>
+            <View>
+                <FlatList
+                    data={products}
+                    keyExtractor={item => item.id}
+                    numColumns={2}
+                    renderItem={({ item }) => (
+                        <TouchableOpacity>
+                            <View style={{ width: '50%', padding: 5 }}>
+                                <ProductCard product={item} />
+                            </View>
+                        </TouchableOpacity>
+                    )}
+                />
+            </View>
+        </View>
     );
 
 }

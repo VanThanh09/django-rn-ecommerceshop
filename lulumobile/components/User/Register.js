@@ -1,32 +1,40 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Button, HelperText, Icon, TextInput } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
-import MyStyle from "../../styles/MyStyle";
+import MyStyles from "../../styles/MyStyles";
 import * as ImagePicker from 'expo-image-picker';
 import Apis, { endpoints } from "../../configs/Apis";
 import { useNavigation } from "@react-navigation/native";
-import * as AuthSession from 'expo-auth-session';
 
 const Register = () => {
-    const [request, response, promptAsync] = AuthSession.useAuthRequest(
-        {
-            clientId: '845623906398-asd5ud30cpg573vroa0b28at336eiakk.apps.googleusercontent.com',
-            scopes: ['openid', 'profile', 'email'],
-            redirectUri: AuthSession.makeRedirectUri({ useProxy: false }),
-        },
-        {
-            authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-        }
-    );
+    const [user, setUser] = useState({});
+    const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState({
+        password: false,
+        confirm: false
+    });
+    const [msg, setMsg] = useState(null);
+    const nav = useNavigation();
+    // const [token, setToken] = useState([]);
 
-    useEffect(() => {
-        if (response?.type === 'success') {
-            const { authentication } = response;
-            console.log('ID Token:', authentication?.idToken);
-        }
-    }, [response]);
+    // const [request, response, promptAsync] = AuthSession.useAuthRequest(
+    //     {
+    //         expoClientId: "845623906398-asd5ud30cpg573vroa0b28at336eiakk.apps.googleusercontent.com",
+    //         androidClientId: "845623906398-1j0di4t3lr5366sq598va7u3oleip69b.apps.googleusercontent.com",
+    //         iosClientId: "845623906398-dlpr00vebtmliibkct1v8ebtd4sst062.apps.googleusercontent.com"
+    //     }
+    // );
 
+
+    // useEffect(() => {
+    //     if (response?.type == "success") {
+    //         console.info(response.authentication.accessToken);
+    //         setToken(response.authentication.accessToken);
+    //     }
+    // }, [response]);
+
+
+    // Info register new account
     const info = [{
         label: "Họ",
         field: "last_name",
@@ -61,17 +69,7 @@ const Register = () => {
         autoCapitalize: "none"
     }];
 
-
-    const [user, setUser] = useState({});
-    const [loading, setLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState({
-        password: false,
-        confirm: false
-    });
-    const [msg, setMsg] = useState(null);
-    const nav = useNavigation();
-
-
+    // Set state for user
     const setState = (value, field) => {
         setUser({ ...user, [field]: value });
     };
@@ -87,11 +85,11 @@ const Register = () => {
         if (status !== 'granted') {
             alert("Permissions denied!");
         } else {
-            const result =
-                await ImagePicker.launchImageLibraryAsync();
-            if (!result.canceled)
+            const result = await ImagePicker.launchImageLibraryAsync();
+            if (!result.canceled) {
                 console.info(result.assets[0])
-            setState(result.assets[0], "avatar");
+                setState(result.assets[0], "avatar");
+            }
         }
     }
 
@@ -164,88 +162,82 @@ const Register = () => {
         }
     }
 
-    const handleGoogleLogin = async () => {
-        try {
-            const result = await promptAsync({ useProxy: false });
-            console.log("Result from Google Login:", result);
-        } catch (error) {
-            console.error("Error in Google Login:", error);
-        }
-    };
+    // const handleGoogleLogin = async () => {
+    //     const result = await promptAsync({ useProxy: true });
+    // };
+
 
     return (
-        <SafeAreaView style={[style.container, { paddingBottom: 0 }]}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={[style.title]}>Đăng Ký Tài Khoản</Text>
+        <ScrollView showsVerticalScrollIndicator={false} style={[styles.container]}>
+            {/* Register with username password */}
+            <HelperText style={MyStyles.m} type="error" visible={msg}>
+                {msg}
+            </HelperText>
 
-                {/* Register with username password */}
-                <HelperText style={MyStyle.m} type="error" visible={msg}>
-                    {msg}
-                </HelperText>
+            {info.map(i => <TextInput key={i.field}
+                label={i.label}
+                value={user[i.field]}
+                style={[MyStyles.m, styles.input]}
+                // outlineStyle={{ borderRadius: 17, }}
+                onChangeText={text => setState(text, i.field)}
+                secureTextEntry={i.securityTextEntry && !showPassword[i.field]}
+                autoCapitalize={i.autoCapitalize}
+                cursorColor="#5d6d75"
+                activeOutlineColor="#5d6d75"
+                activeUnderlineColor="#151515"
+                // mode="outlined"
+                right={i.rIcon ? <TextInput.Icon icon={showPassword[i.field] ? "eye-off" : "eye"} onPress={() => viewPassword(i.field)} size={20} /> : null}
+            />)}
 
-                {info.map(i => <TextInput key={i.field}
-                    label={i.label}
-                    value={user[i.field]}
-                    style={[MyStyle.m, style.input]}
-                    outlineStyle={{ borderRadius: 17, }}
-                    onChangeText={text => setState(text, i.field)}
-                    secureTextEntry={i.securityTextEntry && !showPassword[i.field]}
-                    autoCapitalize={i.autoCapitalize}
-                    cursorColor="#5d6d75"
-                    activeOutlineColor="#5d6d75"
-                    mode="outlined"
-                    right={i.rIcon ? <TextInput.Icon icon={showPassword[i.field] ? "eye-off" : "eye"} onPress={() => viewPassword(i.field)} size={20} /> : null}
-                />)}
+            <View style={[{ flexDirection: 'row', alignItems: 'center' }, MyStyles.m]}>
+                {user.avatar ? <Image source={{ uri: user.avatar.uri }} style={[styles.avatar, { marginRight: 10 }]} /> : <Icon source="account-circle-outline" size={75} />}
+                <TouchableOpacity style={[styles.pickButton, { width: '70%' }]} onPress={pick}>
+                    <Text style={styles.pickButtonText}>Chọn ảnh đại diện...</Text>
+                </TouchableOpacity>
+            </View>
 
-                <View style={[{ flexDirection: 'row', alignItems: 'center' }, MyStyle.m]}>
-                    {user.avatar ? <Image source={{ uri: user.avatar.uri }} style={[style.avatar, { width: '25%' }]} /> : <Icon source="account-circle-outline" size={80} />}
-                    <TouchableOpacity style={[style.pickButton, { width: '70%' }]} onPress={pick}>
-                        <Text style={style.pickButtonText}>Chọn ảnh đại diện...</Text>
-                    </TouchableOpacity>
-                </View>
-
-                <Button
-                    onPress={register}
-                    disabled={loading}
-                    mode="contained"
-                    style={[{ marginTop: 10 }, MyStyle.m, style.button]}>
-                    {loading ? (
-                        <ActivityIndicator color="white" />
-                    ) : (
-                        <Text style={style.buttonText}>Đăng ký</Text>
-                    )}
-                </Button>
+            <Button
+                onPress={register}
+                disabled={loading}
+                mode="contained"
+                style={[{ marginTop: 10 }, MyStyles.m, styles.button]}>
+                {loading ? (
+                    <ActivityIndicator color="white" />
+                ) : (
+                    <Text style={styles.buttonText}>Đăng ký</Text>
+                )}
+            </Button>
 
 
-                {/* Register with social account */}
-                {/* <View style={style.orContainer}>
-                    <View style={style.line} />
-                    <Text style={style.orText}>Hoặc</Text>
-                    <View style={style.line} />
-                </View>
+            {/* Register with social account */}
+            <View style={styles.orContainer}>
+                <View style={styles.line} />
+                <Text style={styles.orText}>Hoặc</Text>
+                <View style={styles.line} />
+            </View>
 
-                <View style={{ marginTop: 10 }}>
-                    <TouchableOpacity style={style.socialButton} onPress={handleGoogleLogin}>
-                        <Image source={require('../../assets/google.png')} style={[style.socialIcon]} />
-                        <Text style={[style.socialButtonText]}>Đăng ký với Google</Text>
-                    </TouchableOpacity>
+            <View style={{ marginTop: 10 }}>
+                <TouchableOpacity style={styles.socialButton} onPress={() => promptAsync({ useProxy: true, showInRecents: true })}>
+                    <Image source={require('../../assets/google.png')} style={[styles.socialIcon]} />
+                    <Text style={[styles.socialButtonText]}>Đăng ký với Google</Text>
+                </TouchableOpacity>
 
-                    <TouchableOpacity style={style.socialButton} onPress={() => console.log('Đăng ký với Facebook')}>
-                        <Image source={require('../../assets/facebook.png')} style={[style.socialIcon]}></Image>
-                        <Text style={style.socialButtonText}>Đăng ký với Facebook</Text>
-                    </TouchableOpacity>
-                </View> */}
+                <TouchableOpacity style={styles.socialButton} onPress={() => console.log('Đăng ký với Facebook')}>
+                    <Image source={require('../../assets/facebook.png')} style={[styles.socialIcon]}></Image>
+                    <Text style={styles.socialButtonText}>Đăng ký với Facebook</Text>
+                </TouchableOpacity>
+            </View>
 
-            </ScrollView>
-        </SafeAreaView >
+        </ScrollView>
     )
 }
 
-const style = StyleSheet.create({
+const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#ffffff',
-        padding: 15
+        padding: 20,
+        paddingTop: 0
     },
     input: {
         backgroundColor: '#fff',
@@ -259,7 +251,8 @@ const style = StyleSheet.create({
         textAlign: 'center',
     },
     button: {
-        backgroundColor: '#151515',
+        backgroundColor: '#fa5230',
+        borderRadius: 1
     },
     buttonText: {
         color: '#ffffff',
@@ -267,7 +260,7 @@ const style = StyleSheet.create({
     pickButton: {
         backgroundColor: '#ffffff',
         padding: 12,
-        borderRadius: 17,
+        borderRadius: 1,
         alignItems: 'center',
         borderWidth: 1,
         margin: 10,
@@ -279,8 +272,8 @@ const style = StyleSheet.create({
         fontWeight: '500',
     },
     avatar: {
-        width: 80,
-        height: 80,
+        width: 75,
+        height: 72,
         borderRadius: 50,
         borderWidth: 2,
         borderColor: '#5d6d75',
@@ -292,7 +285,7 @@ const style = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#151515',
         margin: 5,
-        borderRadius: 50,
+        borderRadius: 1,
     },
     socialButtonText: {
         color: '#151515',
@@ -308,14 +301,13 @@ const style = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         margin: 10,
+        marginTop: 30
     },
-
     line: {
         flex: 1,
         height: 1,
         backgroundColor: '#ccc',
     },
-
     orText: {
         marginHorizontal: 10,
         fontSize: 14,

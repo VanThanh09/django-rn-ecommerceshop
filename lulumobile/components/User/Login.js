@@ -1,8 +1,7 @@
 import { useContext, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text } from "react-native";
-import { Button, HelperText, TextInput } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
-import MyStyle from "../../styles/MyStyle";
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Button, HelperText, Icon, TextInput } from "react-native-paper";
+import MyStyles from "../../styles/MyStyles";
 import Apis, { authApis, endpoints } from "../../configs/Apis";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -56,8 +55,8 @@ const Login = () => {
 
                 let res = await Apis.post(endpoints['login'], {
                     ...user,
-                    'client_id': 'bKbCdqsy9J5Gm2wv9I0Gjz5RRdelnDKMHjgXBSwU',
-                    'client_secret': 'XPGdUEqjDIu1lLgb3CPEkqwYYRwZaKuMAoapbe8Q9AJPK5pPTi15EGzCHh69uvduBUdcbIX0No3oW8brFELKyxCBwYoEVjMIuM6wTnY7G4uXLvNrsh4aCwJxWdQyCJCa',
+                    'client_id': 'lmshBZpKvz0r3x51CfQ2Hay8f0C0TvVIB8Blb9OJ',
+                    'client_secret': 'SWVNeiOP5z4LyZgs8ErBcKZUA6wy6zzBs0A2eDyu7sdHau9uZ60LBNJFdvEbWtbBPw1mHSDlFyT2pqqGfwe8wOUYjfmPGnVqL3cHZkE7AH5EPZWqEJYVBcXykJ6yVBD5',
                     'grant_type': 'password'
                 }, {
                     headers: {
@@ -87,63 +86,82 @@ const Login = () => {
     }
 
     return (
-        <SafeAreaView style={[style.container, { paddingBottom: 0 }]}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={[style.title]}>Đăng Nhập</Text>
+        <ScrollView showsVerticalScrollIndicator={false} style={[styles.container]}>
+            <HelperText style={MyStyles.m} type="error" visible={msg}>
+                {msg}
+            </HelperText>
 
-                <HelperText style={MyStyle.m} type="error" visible={msg}>
-                    {msg}
-                </HelperText>
+            {info.map(i => <TextInput key={i.field}
+                label={i.label}
+                value={user[i.field]}
+                style={[MyStyles.m, styles.input]}
+                // outlineStyle={{ borderRadius: 17, }}
+                onChangeText={text => setState(text, i.field)}
+                secureTextEntry={i.securityTextEntry && !showPassword}
+                autoCapitalize={i.autoCapitalize}
+                cursorColor="#5d6d75"
+                activeOutlineColor="#151515"
+                activeUnderlineColor="#151515"
+                // mode="outlined"
+                right={i.rIcon ? <TextInput.Icon icon={showPassword ? "eye-off" : "eye"} onPress={() => viewPassword()} size={20} /> : null}
+            />)}
 
-                {info.map(i => <TextInput key={i.field}
-                    label={i.label}
-                    value={user[i.field]}
-                    style={[MyStyle.m, style.input]}
-                    outlineStyle={{ borderRadius: 17, }}
-                    onChangeText={text => setState(text, i.field)}
-                    secureTextEntry={i.securityTextEntry && !showPassword[i.field]}
-                    autoCapitalize={i.autoCapitalize}
-                    cursorColor="#5d6d75"
-                    activeOutlineColor="#5d6d75"
-                    mode="outlined"
-                    right={i.rIcon ? <TextInput.Icon icon={showPassword[i.field] ? "eye-off" : "eye"} onPress={() => viewPassword()} size={20} /> : null}
-                />)}
+            <Button
+                onPress={login}
+                disabled={loading}
+                mode="contained"
+                style={[{ marginTop: 10 }, MyStyles.m, styles.button]}>
+                {loading ? (
+                    <ActivityIndicator color="white" />
+                ) : (
+                    <Text style={styles.buttonText}>Đăng nhập</Text>
+                )}
+            </Button>
 
-                <Button
-                    onPress={login}
-                    disabled={loading}
-                    mode="contained"
-                    style={[{ marginTop: 10 }, MyStyle.m, style.button]}>
-                    {loading ? (
-                        <ActivityIndicator color="white" />
-                    ) : (
-                        <Text style={style.buttonText}>Đăng nhập</Text>
-                    )}
-                </Button>
-            </ScrollView>
-        </SafeAreaView >
+            {/* Register with social account */}
+            <View style={styles.orContainer}>
+                <View style={styles.line} />
+                <Text style={styles.orText}>Hoặc</Text>
+                <View style={styles.line} />
+            </View>
+
+            <View style={{ marginTop: 10 }}>
+                <TouchableOpacity style={styles.socialButton} onPress={() => promptAsync({ useProxy: true, showInRecents: true })}>
+                    <Image source={require('../../assets/google.png')} style={[styles.socialIcon]} />
+                    <Text style={[styles.socialButtonText]}>Đăng ký với Google</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.socialButton} onPress={() => console.log('Đăng ký với Facebook')}>
+                    <Image source={require('../../assets/facebook.png')} style={[styles.socialIcon]}></Image>
+                    <Text style={styles.socialButtonText}>Đăng ký với Facebook</Text>
+                </TouchableOpacity>
+            </View>
+
+        </ScrollView>
     )
 }
 
-const style = StyleSheet.create({
+const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#ffffff',
-        padding: 15
+        padding: 20,
+        paddingTop: 0
     },
     input: {
         backgroundColor: '#fff',
         fontSize: 14,
     },
     title: {
-        fontSize: 24,
+        fontSize: 20,
         fontWeight: 'bold',
         color: '#333',
         marginBottom: 20,
         textAlign: 'center',
     },
     button: {
-        backgroundColor: '#151515',
+        backgroundColor: '#fa5230',
+        borderRadius: 1
     },
     buttonText: {
         color: '#ffffff',
@@ -176,7 +194,7 @@ const style = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#151515',
         margin: 5,
-        borderRadius: 50,
+        borderRadius: 1,
     },
     socialButtonText: {
         color: '#151515',
@@ -192,14 +210,13 @@ const style = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         margin: 10,
+        marginTop: 30
     },
-
     line: {
         flex: 1,
         height: 1,
         backgroundColor: '#ccc',
     },
-
     orText: {
         marginHorizontal: 10,
         fontSize: 14,

@@ -108,12 +108,12 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 
 # ProductSerializer trả ra thông tin product
 class ProductSerializer(serializers.ModelSerializer):
-    store = serializers.CharField(source='store.name')
+    # store = serializers.CharField(source='store.name')
     price = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'logo', 'store', 'price']
+        fields = ['id', 'name', 'description', 'logo', 'price']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

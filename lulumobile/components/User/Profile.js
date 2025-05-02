@@ -1,11 +1,11 @@
 import { useContext, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { ActivityIndicator, Button } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { MyDispatchContext, MyUserContext } from "../../configs/MyContext";
-import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import MyStyle from "../../styles/MyStyle";
+import MyStyles from "../../styles/MyStyles";
+import HearderProfile from "../ui/profilePage/Header";
 
 const Profile = () => {
     const user = useContext(MyUserContext);
@@ -27,29 +27,20 @@ const Profile = () => {
         } finally {
             setLoading(false);
         }
-
     }
 
+    const pressLogin = () => (nav.navigate("login"))
+    const pressRegister = () => (nav.navigate("register"))
+
+
     return (
-        <SafeAreaView>
-            <View>
-                <Text>Chào {user?.first_name} {user?.last_name}!</Text>
-                <Button
-                    onPress={logout}
-                    mode="contained"
-                    style={[{ marginTop: 10 }, MyStyle.m, style.button]}>
-                    {loading ? (
-                        <ActivityIndicator color="white" />
-                    ) : (
-                        <Text style={style.buttonText}>Đăng xuất</Text>
-                    )}
-                </Button>
-            </View>
-        </SafeAreaView>
+        <View style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}>
+            <HearderProfile onLoginPress={pressLogin} onRegisterPress={pressRegister} onLogoutPress={logout} />
+        </View>
     );
 }
 
-const style = StyleSheet.create({
+const styles = StyleSheet.create({
     button: {
         backgroundColor: '#151515',
     },

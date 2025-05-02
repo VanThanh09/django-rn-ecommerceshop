@@ -1,6 +1,10 @@
 import { StyleSheet } from "react-native";
 
 export default StyleSheet.create({
+    container: {
+        flex: 1,
+        padding: 3
+    },
     m: {
         margin: 5
     },
@@ -9,4 +13,10 @@ export default StyleSheet.create({
         height: 80,
         borderRadius: 50
     },
+    bgPrimaryColor: {
+        backgroundColor: "#fa5230"
+    },
+    primaryColor: {
+        color: "#fff"
+    }
 })
