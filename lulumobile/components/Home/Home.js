@@ -11,6 +11,7 @@ function Home() {
     const loadProducts = async () => {
         let res = await Apis.get(endpoints['products']);
         setProducts(res.data.results);
+        console.info(res.data.results)
     };
 
     useEffect(() => {

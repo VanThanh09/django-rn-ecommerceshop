@@ -100,7 +100,7 @@ const StoreRegister = () => {
                 }
 
                 const token = await AsyncStorage.getItem('token');
-                console.info(token);
+
                 try {
                     let res = await authApis(token).post(endpoints['verification_seller'], form, {
                         headers: {
@@ -118,6 +118,7 @@ const StoreRegister = () => {
                         setMsg("Đã có lỗi xảy ra.");
                     }
                 }
+
             } catch (ex) {
                 console.error(ex);
             } finally {
