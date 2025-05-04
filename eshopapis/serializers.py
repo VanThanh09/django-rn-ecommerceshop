@@ -132,8 +132,15 @@ class VerificationSellerSerializer(serializers.ModelSerializer):
     class Meta:
         model = VerificationSeller
         fields = ['id', 'user', 'status', 'created_date', 'reason', 'temp_store_name', 'temp_store_description',
-                  'temp_store_logo']
+                  'temp_store_logo', 'temp_store_address', 'temp_owner_name', 'temp_owner_ident']
         read_only_fields = ['user', 'created_date']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        data['temp_store_logo'] = instance.temp_store_logo.url
+
+        return data
 
 
 class ProductCreateSerializer(serializers.ModelSerializer):

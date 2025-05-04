@@ -10,6 +10,7 @@ import { MyDispatchContext, MyUserContext } from './configs/MyContext';
 import { Icon } from 'react-native-paper';
 import Profile from './components/user/Profile';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import StoreRegister from './components/user/StoreRegister';
 
 const Stack = createNativeStackNavigator();
 function MyStack() {
@@ -18,6 +19,7 @@ function MyStack() {
       <Stack.Screen name="index" component={Profile} options={{ title: "Tài khoản", headerShown: false }} />
       <Stack.Screen name="login" component={Login} options={{ title: "Đăng nhập" }} />
       <Stack.Screen name="register" component={Register} options={{ title: "Đăng ký" }} />
+      <Stack.Screen name="storeRegister" component={StoreRegister} options={{ title: "Đăng ký cửa hàng" }} />
     </ Stack.Navigator>
   )
 }

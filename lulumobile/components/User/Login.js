@@ -67,8 +67,7 @@ const Login = () => {
                 await AsyncStorage.setItem('token', res.data.access_token);
 
                 const token = await AsyncStorage.getItem('token');
-                console.info(token)
-                let u = await authApis(token).get(endpoints['current-user']);
+                let u = await authApis(token).get(endpoints['current_user']);
                 console.info(u.data)
 
                 dispatch({
@@ -86,7 +85,7 @@ const Login = () => {
     }
 
     return (
-        <ScrollView showsVerticalScrollIndicator={false} style={[styles.container]}>
+        <ScrollView showsVerticalScrollIndicator={false} style={[styles.container]} contentContainerStyle={{ paddingBottom: 70 }}>
             <HelperText style={MyStyles.m} type="error" visible={msg}>
                 {msg}
             </HelperText>
@@ -119,7 +118,7 @@ const Login = () => {
             </Button>
 
             {/* Register with social account */}
-            <View style={styles.orContainer}>
+            {/* <View style={styles.orContainer}>
                 <View style={styles.line} />
                 <Text style={styles.orText}>Hoặc</Text>
                 <View style={styles.line} />
@@ -135,7 +134,7 @@ const Login = () => {
                     <Image source={require('../../assets/facebook.png')} style={[styles.socialIcon]}></Image>
                     <Text style={styles.socialButtonText}>Đăng ký với Facebook</Text>
                 </TouchableOpacity>
-            </View>
+            </View> */}
 
         </ScrollView>
     )

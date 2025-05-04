@@ -5,6 +5,7 @@ import MyStyles from "../../styles/MyStyles";
 import * as ImagePicker from 'expo-image-picker';
 import Apis, { endpoints } from "../../configs/Apis";
 import { useNavigation } from "@react-navigation/native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const Register = () => {
     const [user, setUser] = useState({});
@@ -15,6 +16,7 @@ const Register = () => {
     });
     const [msg, setMsg] = useState(null);
     const nav = useNavigation();
+
     // const [token, setToken] = useState([]);
 
     // const [request, response, promptAsync] = AuthSession.useAuthRequest(
@@ -87,7 +89,6 @@ const Register = () => {
         } else {
             const result = await ImagePicker.launchImageLibraryAsync();
             if (!result.canceled) {
-                console.info(result.assets[0])
                 setState(result.assets[0], "avatar");
             }
         }
@@ -126,26 +127,21 @@ const Register = () => {
 
                 setLoading(true);
                 setMsg(null);
-                console.info(1)
 
                 let form = new FormData();
                 for (let key in user) {
                     if (key != "confirm") {
                         if (key === 'avatar') {
-                            let fileType = user.avatar.uri.split('.').pop(); // lấy phần đuôi file (ví dụ jpg, png)
-                            let mimeType = `image/${fileType}`;
-
                             form.append(key, {
                                 uri: user.avatar.uri,
-                                name: user.avatar.name || 'avatar.jpg',
-                                type: mimeType || 'image/jpeg',
+                                name: user.avatar.fileName || 'avatar.jpg',
+                                type: user.avatar.mimeType || 'image/jpeg',
                             });
                         } else
                             form.append(key, user[key]);
                     }
                 }
-
-                console.info(form);
+                console.info(form)
 
                 await Apis.post(endpoints['register'], form, {
                     headers: {
@@ -168,26 +164,30 @@ const Register = () => {
 
 
     return (
-        <ScrollView showsVerticalScrollIndicator={false} style={[styles.container]}>
+        <ScrollView showsVerticalScrollIndicator={false} style={[styles.container]} contentContainerStyle={{ paddingBottom: 70 }}>
             {/* Register with username password */}
-            <HelperText style={MyStyles.m} type="error" visible={msg}>
-                {msg}
-            </HelperText>
-
-            {info.map(i => <TextInput key={i.field}
-                label={i.label}
-                value={user[i.field]}
-                style={[MyStyles.m, styles.input]}
-                // outlineStyle={{ borderRadius: 17, }}
-                onChangeText={text => setState(text, i.field)}
-                secureTextEntry={i.securityTextEntry && !showPassword[i.field]}
-                autoCapitalize={i.autoCapitalize}
-                cursorColor="#5d6d75"
-                activeOutlineColor="#5d6d75"
-                activeUnderlineColor="#151515"
-                // mode="outlined"
-                right={i.rIcon ? <TextInput.Icon icon={showPassword[i.field] ? "eye-off" : "eye"} onPress={() => viewPassword(i.field)} size={20} /> : null}
-            />)}
+            {msg === null ? <>
+            </> : <>
+                <HelperText style={[MyStyles.m]} type="error">
+                    {msg}
+                </HelperText>
+            </>}
+            {
+                info.map(i => <TextInput key={i.field}
+                    label={i.label}
+                    value={user[i.field]}
+                    style={[MyStyles.m, styles.input]}
+                    // outlineStyle={{ borderRadius: 17, }}
+                    onChangeText={text => setState(text, i.field)}
+                    secureTextEntry={i.securityTextEntry && !showPassword[i.field]}
+                    autoCapitalize={i.autoCapitalize}
+                    cursorColor="#5d6d75"
+                    activeOutlineColor="#5d6d75"
+                    activeUnderlineColor="#151515"
+                    // mode="outlined"
+                    right={i.rIcon ? <TextInput.Icon icon={showPassword[i.field] ? "eye-off" : "eye"} onPress={() => viewPassword(i.field)} size={20} /> : null}
+                />)
+            }
 
             <View style={[{ flexDirection: 'row', alignItems: 'center' }, MyStyles.m]}>
                 {user.avatar ? <Image source={{ uri: user.avatar.uri }} style={[styles.avatar, { marginRight: 10 }]} /> : <Icon source="account-circle-outline" size={75} />}
@@ -208,9 +208,8 @@ const Register = () => {
                 )}
             </Button>
 
-
             {/* Register with social account */}
-            <View style={styles.orContainer}>
+            {/* <View style={styles.orContainer}>
                 <View style={styles.line} />
                 <Text style={styles.orText}>Hoặc</Text>
                 <View style={styles.line} />
@@ -226,9 +225,8 @@ const Register = () => {
                     <Image source={require('../../assets/facebook.png')} style={[styles.socialIcon]}></Image>
                     <Text style={styles.socialButtonText}>Đăng ký với Facebook</Text>
                 </TouchableOpacity>
-            </View>
-
-        </ScrollView>
+            </View> */}
+        </ScrollView >
     )
 }
 
@@ -237,7 +235,6 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#ffffff',
         padding: 20,
-        paddingTop: 0
     },
     input: {
         backgroundColor: '#fff',

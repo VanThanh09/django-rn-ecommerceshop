@@ -23,20 +23,23 @@ class User(AbstractUser):
 
 class VerificationSeller(models.Model):
     class RequestStatus(models.TextChoices):
-        PEDING = 'PE', _("PENDING")
+        PENDING = 'PE', _("PENDING")
         ACCEPT = 'AC', _("ACCEPT")
         REJECTED = 'RE', _("REJECTED")
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='customer_request')
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
-    status = models.CharField(max_length=2, choices=RequestStatus, default=RequestStatus.PEDING)
+    status = models.CharField(max_length=2, choices=RequestStatus, default=RequestStatus.PENDING)
     reason = models.TextField(null=True, blank=True)
     employee = models.ForeignKey(User, on_delete=models.PROTECT, related_name='employee', null=True, blank=True)
 
     temp_store_name = models.CharField(max_length=255)
     temp_store_description = models.TextField()
-    temp_store_logo = CloudinaryField()
+    temp_store_logo = CloudinaryField(null=True)
+    temp_store_address = models.CharField(max_length=400)
+    temp_owner_name = models.CharField(max_length=255)
+    temp_owner_ident = models.IntegerField()
 
     class Meta:
         unique_together = ['status', 'user']
@@ -58,7 +61,10 @@ class BaseModel(models.Model):
 class Store(BaseModel):
     name = models.CharField(max_length=255)
     description = models.TextField()
+    store_address = models.CharField(max_length=400)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)  # Chủ sở hữu cửa hàng
+    owner_name = models.CharField(max_length=255)
+    owner_ident = models.IntegerField()
 
     def __str__(self):
         return self.name

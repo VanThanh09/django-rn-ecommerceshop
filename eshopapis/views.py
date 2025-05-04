@@ -26,7 +26,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     serializer_class = serializers.UserSerializer
     parser_classes = [parsers.MultiPartParser]
 
-    @action(methods=['get'], url_path='current-user', detail=False, permission_classes=[permissions.IsAuthenticated])
+    @action(methods=['get'], url_path='current_user', detail=False, permission_classes=[permissions.IsAuthenticated])
     def get_current_user(self, request):
         return Response(serializers.UserSerializer(request.user).data)
 
@@ -124,6 +124,7 @@ class StoreDetailViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
 class VerificationSellerViewSet(viewsets.ViewSet, generics.ListCreateAPIView):
     queryset = VerificationSeller.objects.all()
     serializer_class = serializers.VerificationSellerSerializer
+    parser_classes = [parsers.MultiPartParser]
 
     def get_permissions(self):
         if self.action == 'create':
@@ -145,6 +146,8 @@ class VerificationSellerViewSet(viewsets.ViewSet, generics.ListCreateAPIView):
             return Response({"detail": "The request already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
         return super().create(request, *args, **kwargs)
+
+
 
     # save the request with user send request
     def perform_create(self, serializer):
@@ -170,7 +173,10 @@ class ActionVerificationViewSet(viewsets.ViewSet):
             name=obj.temp_store_name,
             description=obj.temp_store_description,
             logo=obj.temp_store_logo,
-            owner=obj.user
+            owner=obj.user,
+            store_address=obj.temp_store_address,
+            owner_name=obj.temp_owner_name,
+            owner_ident=obj.temp_owner_ident
         )
 
         # Change user_role to SELLER
