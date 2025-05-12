@@ -1,7 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = 'https://c812-2402-800-62ec-acf8-a4dc-3bf5-78ef-850b.ngrok-free.app/';
-
+const BASE_URL = 'https://cf71-2402-800-62ec-a8f1-ad46-d6cb-87b5-2f03.ngrok-free.app/'
 export const endpoints = {
     'products': '/products/',
     'product': (pId) => `/product/${pId}/`,
@@ -9,6 +8,8 @@ export const endpoints = {
     'login': '/o/token/',
     'current_user': '/users/current_user/',
     'verification_seller': '/verification_seller/',
+    'categories': '/categories',
+    'create_product': '/create_product/'
 };
 
 export const authApis = (token) => {

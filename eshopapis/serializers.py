@@ -16,7 +16,7 @@ class StoreSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'username', 'password', 'email', 'avatar']
+        fields = ['first_name', 'last_name', 'username', 'password', 'email', 'avatar', 'user_role']
         extra_kwargs = {
             'password': {
                 'write_only': True
@@ -60,10 +60,18 @@ class AttributeValueSerializer(serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'logo']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        if data['logo']:
+            data['logo'] = instance.logo.url
+
+        return data
 
 
-# eProductVariantSerializr trả ra thông tin các biến thể của một product (thông tin chi tiết)
+# ProductVariantSerializr trả ra thông tin các biến thể của một product (thông tin chi tiết)
 class ProductVariantSerializer(serializers.ModelSerializer):
     attributes = AttributeValueSerializer(many=True)
 
@@ -86,10 +94,12 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     store = StoreSerializer()
     attributes = serializers.SerializerMethodField()
     category_set = CategorySerializer(many=True)
+    price = serializers.SerializerMethodField()
+    total_quantity = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'store', 'category_set', 'attributes', 'productvariant_set']
+        fields = ['id', 'name', 'description', 'store', 'price', 'total_quantity', 'logo', 'category_set', 'attributes', 'productvariant_set']
 
     def get_attributes(self, obj):
         """Tạo danh sách thuộc tính của tất cả biến thể"""
@@ -105,8 +115,28 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         # Chuyển `set` thành `list` để trả về JSON
         return {key: list(values) for key, values in attributes.items()}
 
+    def get_price(self, obj):
+        price = [variant.price for variant in obj.productvariant_set.all()]
+        return str("{:,.0f}".format(min(price)))
 
-# ProductSerializer trả ra thông tin product
+    def get_total_quantity(self, obj):
+        total = 0
+        for variant in obj.productvariant_set.all():
+            total += variant.quantity
+            print(total)
+        return total
+
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        if data['logo']:
+            data['logo'] = instance.logo.url
+
+        return data
+
+
+# ProductSerializer trả ra thông tin cho toàn bộ product (home)
 class ProductSerializer(serializers.ModelSerializer):
     # store = serializers.CharField(source='store.name')
     price = serializers.SerializerMethodField()
@@ -146,8 +176,7 @@ class VerificationSellerSerializer(serializers.ModelSerializer):
 class ProductCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'store', 'category_set', 'productvariant_set']
-
+        fields = ['id', 'name', 'description', 'logo', 'store', 'category_set', 'productvariant_set']
 
 
 # Same with ProductVariantSerializer but add with product name

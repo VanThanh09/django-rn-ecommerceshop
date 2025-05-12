@@ -1,12 +1,11 @@
 import { useContext, useState } from "react";
-import { Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { ActivityIndicator, Button, Icon } from "react-native-paper";
+import { Platform, ScrollView, StatusBar, StyleSheet, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { MyDispatchContext, MyUserContext } from "../../configs/MyContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import MyStyles from "../../styles/MyStyles";
 import HearderProfile from "../ui/profilePage/HeaderProfile";
 import FeatureButton from "../ui/profilePage/FeatureButton";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const Profile = () => {
     const user = useContext(MyUserContext);
@@ -17,6 +16,12 @@ const Profile = () => {
     const features = [{
         label: "Đăng ký cửa hàng",
         icon: "store",
+        color: "#3a5998"
+    }]
+
+    const sellerFeatures = [{
+        label: "Thêm sản phẩm",
+        icon: "plus-box",
         color: "#3a5998"
     }]
 
@@ -39,15 +44,29 @@ const Profile = () => {
     const pressLogin = () => (nav.navigate("login"))
     const pressRegister = () => (nav.navigate("register"))
     const handleStoreRegister = () => (nav.navigate("storeRegister"))
-
+    const handleAddProduct = () => (nav.navigate('addProduct'))
 
     return (
-        <View style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}>
+        <SafeAreaView>
+            {/* <View style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}> */}
             <HearderProfile onLoginPress={pressLogin} onRegisterPress={pressRegister} onLogoutPress={logout} />
-            <ScrollView contentContainerStyle={{ paddingBottom: 70 }} style={[styles.container]}>
-                {features.map(i => <FeatureButton label={i.label} icon={i.icon} color={i.color} onPress={handleStoreRegister} key={i.label} />)}
+            <ScrollView contentContainerStyle style={[styles.container]}>
+
+                {/* Hiện tính năng cho người bán */}
+                {user !== null && user.user_role === 'SE' && (
+                    <View style={styles.viewContainer}>
+                        {sellerFeatures.map(i => <FeatureButton label={i.label} icon={i.icon} color={i.color} onPress={handleAddProduct} key={i.label} />)}
+                    </View>
+                )}
+
+                {/* Tính năng chung */}
+                <View style={styles.viewContainer}>
+                    {features.map(i => <FeatureButton label={i.label} icon={i.icon} color={i.color} onPress={handleStoreRegister} key={i.label} />)}
+                </View>
+
             </ScrollView>
-        </View>
+            {/* </View> */}
+        </SafeAreaView>
     );
 }
 
@@ -55,6 +74,10 @@ const styles = StyleSheet.create({
     container: {
         padding: 0,
         backgroundColor: '#ffffff',
+    },
+    viewContainer: {
+        backgroundColor: '#fff',
+        padding: 7
     },
     button: {
         backgroundColor: '#151515',

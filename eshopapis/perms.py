@@ -32,6 +32,7 @@ class IsCustomerOrSeller(permissions.IsAuthenticated):
     def has_permission(self, request, view):
         return super().has_permission(request,view) and (request.user.user_role == User.UserRole.CUSTOMER or request.user.user_role == User.UserRole.SELLER )
 
+
 class IsCustomer(permissions.IsAuthenticated):
     def has_permission(self, request, view):
         return super().has_permission(request, view) and request.user.user_role == User.UserRole.CUSTOMER

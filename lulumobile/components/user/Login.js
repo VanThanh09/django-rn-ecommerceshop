@@ -50,13 +50,14 @@ const Login = () => {
     const login = async () => {
         if (validate()) {
             try {
+
                 setLoading(true);
                 setMsg(null);
 
                 let res = await Apis.post(endpoints['login'], {
                     ...user,
-                    'client_id': 'lmshBZpKvz0r3x51CfQ2Hay8f0C0TvVIB8Blb9OJ',
-                    'client_secret': 'SWVNeiOP5z4LyZgs8ErBcKZUA6wy6zzBs0A2eDyu7sdHau9uZ60LBNJFdvEbWtbBPw1mHSDlFyT2pqqGfwe8wOUYjfmPGnVqL3cHZkE7AH5EPZWqEJYVBcXykJ6yVBD5',
+                    'client_id': 'sBSm4JuvTR5IuZXxQ7JIFXzHG6u5yWiJp6YPjR8e',
+                    'client_secret': 'p4oY40jrnztZ4XroNsxRD24dqso6DhoKlgSUR0LZ6upNwiuqu2abdM614IvutkyNUhyBpSg03AtHWNUR238lF6Ji46i5EYSUPiHnonnnw8G5uq5yZubVgc2f962Bsu3u',
                     'grant_type': 'password'
                 }, {
                     headers: {
@@ -68,16 +69,21 @@ const Login = () => {
 
                 const token = await AsyncStorage.getItem('token');
                 let u = await authApis(token).get(endpoints['current_user']);
-                console.info(u.data)
+                // console.info(u.data)
 
                 dispatch({
                     "type": "login",
                     "payload": u.data
                 });
 
-                nav.navigate('home');
+                nav.navigate('profileMain');
             } catch (ex) {
-                console.error(ex);
+                if (ex.response && ex.response.status === 400) {
+                    setMsg("Sai tên đăng nhập hoặc mật khẩu");
+                } else {
+                    setMsg("Đã có lỗi xảy ra thử lại sau")
+                }
+                // console.error(ex);
             } finally {
                 setLoading(false);
             }
@@ -86,7 +92,7 @@ const Login = () => {
 
     return (
         <ScrollView showsVerticalScrollIndicator={false} style={[styles.container]} contentContainerStyle={{ paddingBottom: 70 }}>
-            <HelperText style={MyStyles.m} type="error" visible={msg}>
+            <HelperText style={[MyStyles.m, { textAlign: 'center', marginTop: 10 }]} type="error" visible={msg}>
                 {msg}
             </HelperText>
 

@@ -124,7 +124,6 @@ const Register = () => {
     const register = async () => {
         if (validate()) {
             try {
-
                 setLoading(true);
                 setMsg(null);
 
@@ -141,7 +140,6 @@ const Register = () => {
                             form.append(key, user[key]);
                     }
                 }
-                console.info(form)
 
                 await Apis.post(endpoints['register'], form, {
                     headers: {
@@ -149,9 +147,13 @@ const Register = () => {
                     }
                 });
 
-                nav.navigate('home');
+                nav.navigate('login');
             } catch (ex) {
-                console.error(ex);
+                if (ex.response && ex.response.status === 400) {
+                    setMsg("Tên đăng nhập đã tồn tại. Vui lòng chọn tên khác!")
+                } else {
+                    setMsg("Lỗi không xác định!")
+                }
             } finally {
                 setLoading(false);
             }

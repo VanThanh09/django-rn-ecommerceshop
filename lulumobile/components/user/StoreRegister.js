@@ -23,14 +23,17 @@ const StoreRegister = () => {
     const ident = [{
         label: "Họ tên chủ cửa hàng",
         field: "temp_owner_name",
+        autoCapitalize: 'words',
         securityTextEntry: false,
     }, {
         label: "Căn cước công dân",
         field: "temp_owner_ident",
+        autoCapitalize: "none",
         securityTextEntry: false,
     }, {
         label: "Địa chỉ cửa hàng",
         field: "temp_store_address",
+        autoCapitalize: "none",
         securityTextEntry: false,
     }];
 
@@ -64,7 +67,6 @@ const StoreRegister = () => {
                 setMsg(`Vui lòng nhập ${i.label}!`);
                 return false;
             }
-
         return true;
     }
 
@@ -165,51 +167,36 @@ const StoreRegister = () => {
                         <Text style={styles.buttonText}>Đăng nhập</Text>
                     </Button>
                 </View>
-
             </> : <>
-
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 70 }}>
-                    <Stepper steps={steps} currentStep={currentStep} />
-                    {msg === null ? <>
-                    </> : <>
-                        <HelperText style={MyStyles.m} type="error" visible={msg}>
-                            {msg}
-                        </HelperText>
-                    </>}
-                    {currentStep === 0 ? <>
-                        <View style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, MyStyles.m]}>
-                            {tempStore.temp_store_logo ? <Image source={{ uri: tempStore.temp_store_logo.uri }} style={[styles.avatar]} /> : <Icon source="incognito-circle" size={75} />}
-                            <TouchableOpacity style={[styles.pickButton, { width: '70%' }]} onPress={pickImage}>
-                                <Text style={styles.pickButtonText}>Chọn logo cửa hàng...</Text>
-                            </TouchableOpacity>
-                        </View>
-                        {info.map(i => <TextInput key={i.field}
-                            label={i.label}
-                            value={tempStore[i.field]}
-                            style={[MyStyles.m, styles.input]}
-                            onChangeText={text => setState(text, i.field)}
-                            secureTextEntry={i.securityTextEntry}
-                            cursorColor="#5d6d75"
-                            activeOutlineColor="#151515"
-                            activeUnderlineColor="#151515"
-                        />)}
-
+                {user.user_role === 'SE' ? <>
+                    <View style={[{ justifyContent: 'center', alignItems: 'center', flex: 1 }]}>
+                        <Text style={{ textAlign: 'center' }}>
+                            Cửa hàng đã tồn tại
+                        </Text>
                         <Button
-                            onPress={onNextStepPress}
-                            disabled={loading}
+                            onPress={() => nav.navigate("home")}
                             mode="contained"
-                            style={[{ marginTop: 20 }, MyStyles.m, styles.button]}>
-                            {loading ? (
-                                <ActivityIndicator color="white" />
-                            ) : (
-                                <Text style={styles.buttonText}>Tiếp theo</Text>
-                            )}
+                            style={[{ marginTop: 10 }, MyStyles.m, styles.button]}>
+                            <Text style={styles.buttonText}>Trang chủ</Text>
                         </Button>
-
-                    </> : <>
-
-                        {currentStep === 1 ? <>
-                            {ident.map(i => <TextInput key={i.field}
+                    </View>
+                </> : <>
+                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 70 }}>
+                        <Stepper steps={steps} currentStep={currentStep} />
+                        {msg === null ? <>
+                        </> : <>
+                            <HelperText style={MyStyles.m} type="error" visible={msg}>
+                                {msg}
+                            </HelperText>
+                        </>}
+                        {currentStep === 0 ? <>
+                            <View style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, MyStyles.m]}>
+                                {tempStore.temp_store_logo ? <Image source={{ uri: tempStore.temp_store_logo.uri }} style={[styles.avatar]} /> : <Icon source="incognito-circle" size={75} />}
+                                <TouchableOpacity style={[styles.pickButton, { width: '70%' }]} onPress={pickImage}>
+                                    <Text style={styles.pickButtonText}>Chọn logo cửa hàng...</Text>
+                                </TouchableOpacity>
+                            </View>
+                            {info.map(i => <TextInput key={i.field}
                                 label={i.label}
                                 value={tempStore[i.field]}
                                 style={[MyStyles.m, styles.input]}
@@ -219,46 +206,74 @@ const StoreRegister = () => {
                                 activeOutlineColor="#151515"
                                 activeUnderlineColor="#151515"
                             />)}
-                            <Text style={[styles.subTitle, { marginTop: 20 }]}>Vui lòng kiểm tra lại thông tin trước khi nhấn đăng ký! Chúng tôi sẽ từ chối yêu cầu của bạn nếu thông tin không chính xác.</Text>
 
                             <Button
-                                onPress={handleStoreRegister}
+                                onPress={onNextStepPress}
                                 disabled={loading}
                                 mode="contained"
                                 style={[{ marginTop: 20 }, MyStyles.m, styles.button]}>
                                 {loading ? (
                                     <ActivityIndicator color="white" />
                                 ) : (
-                                    <Text style={styles.buttonText}>Đăng ký cửa hàng</Text>
+                                    <Text style={styles.buttonText}>Tiếp theo</Text>
                                 )}
-                            </Button>
-                            <Button style={[{
-                                borderRadius: 3,
-                                borderWidth: 1,
-                                borderColor: '#fff',
-                                backgroundColor: '#fff'
-                            }, MyStyles.m]}
-                                onPress={onPrevStepPress}>
-                                <Text style={{ color: "#fa5230" }}>Trở lại</Text>
                             </Button>
 
                         </> : <>
 
-                            <View style={{ alignItems: 'center', marginVertical: 20, }}>
-                                <Icon source="check-circle" size={50} color="#4dd074" />
-                                <Text style={[styles.title]}>Đăng ký thành công</Text>
-                                <Text style={[styles.subTitle]}>Vui lòng chờ nhân viên chúng tôi xác nhận thông tin của bạn</Text>
-                                <Button
-                                    onPress={() => nav.navigate("home")}
-                                    mode="contained"
-                                    style={[{ marginTop: 10 }, MyStyles.m, styles.button]}>
-                                    <Text style={styles.buttonText}>Quay lại trang chủ</Text>
-                                </Button>
-                            </View>
-                        </>}
-                    </>}
+                            {currentStep === 1 ? <>
+                                {ident.map(i => <TextInput key={i.field}
+                                    label={i.label}
+                                    value={tempStore[i.field]}
+                                    style={[MyStyles.m, styles.input]}
+                                    onChangeText={text => setState(text, i.field)}
+                                    secureTextEntry={i.securityTextEntry}
+                                    autoCapitalize={i.autoCapitalize}
+                                    cursorColor="#5d6d75"
+                                    activeOutlineColor="#151515"
+                                    activeUnderlineColor="#151515"
+                                />)}
+                                <Text style={[styles.subTitle, { marginTop: 20 }]}>Vui lòng kiểm tra lại thông tin trước khi nhấn đăng ký! Chúng tôi sẽ từ chối yêu cầu của bạn nếu thông tin không chính xác.</Text>
 
-                </ScrollView>
+                                <Button
+                                    onPress={handleStoreRegister}
+                                    disabled={loading}
+                                    mode="contained"
+                                    style={[{ marginTop: 20 }, MyStyles.m, styles.button]}>
+                                    {loading ? (
+                                        <ActivityIndicator color="white" />
+                                    ) : (
+                                        <Text style={styles.buttonText}>Đăng ký cửa hàng</Text>
+                                    )}
+                                </Button>
+                                <Button style={[{
+                                    borderRadius: 3,
+                                    borderWidth: 1,
+                                    borderColor: '#fff',
+                                    backgroundColor: '#fff'
+                                }, MyStyles.m]}
+                                    onPress={onPrevStepPress}>
+                                    <Text style={{ color: "#fa5230" }}>Trở lại</Text>
+                                </Button>
+
+                            </> : <>
+
+                                <View style={{ alignItems: 'center', marginVertical: 20, }}>
+                                    <Icon source="check-circle" size={50} color="#4dd074" />
+                                    <Text style={[styles.title]}>Đăng ký thành công</Text>
+                                    <Text style={[styles.subTitle]}>Vui lòng chờ nhân viên chúng tôi xác nhận thông tin của bạn</Text>
+                                    <Button
+                                        onPress={() => nav.navigate("home")}
+                                        mode="contained"
+                                        style={[{ marginTop: 10 }, MyStyles.m, styles.button]}>
+                                        <Text style={styles.buttonText}>Quay lại trang chủ</Text>
+                                    </Button>
+                                </View>
+                            </>}
+                        </>}
+
+                    </ScrollView>
+                </>}
             </>}
         </View>
     )

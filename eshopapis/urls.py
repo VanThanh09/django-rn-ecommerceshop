@@ -10,6 +10,8 @@ router.register('product', views.ProductDetailViewSet, basename='product')
 router.register('verification_seller', views.VerificationSellerViewSet, basename='verification_seller')
 router.register('action_verification', views.ActionVerificationViewSet, basename='action_verification')
 router.register('create_product', views.ProductCreateViewSet, basename='create_product')
+router.register('categories', views.CategoryViewSet, basename='categories')
+
 router.register('orders',views.OrderViewSet,basename='order')
 router.register('cart-detail', views.CartDetailViewSet, basename='cart-detail')
 

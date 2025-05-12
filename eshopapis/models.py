@@ -39,7 +39,7 @@ class VerificationSeller(models.Model):
     temp_store_logo = CloudinaryField(null=True)
     temp_store_address = models.CharField(max_length=400)
     temp_owner_name = models.CharField(max_length=255)
-    temp_owner_ident = models.IntegerField()
+    temp_owner_ident = models.CharField(max_length=20)
 
     class Meta:
         unique_together = ['status', 'user']
@@ -64,7 +64,7 @@ class Store(BaseModel):
     store_address = models.CharField(max_length=400)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)  # Chủ sở hữu cửa hàng
     owner_name = models.CharField(max_length=255)
-    owner_ident = models.IntegerField()
+    owner_ident = models.CharField(max_length=20)
 
     def __str__(self):
         return self.name
@@ -83,6 +83,7 @@ class Category(models.Model):
     name = models.CharField(max_length=255)
     products = models.ManyToManyField('Product',
                                       blank=True)  # Một danh mục chứa nhiều sản phẩm, sản phẩm tộc nhiều danh mục
+    logo = CloudinaryField(null=True, blank=True)
 
     def __str__(self):
         return self.name

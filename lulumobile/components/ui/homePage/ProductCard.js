@@ -19,7 +19,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         elevation: 2,
         position: 'relative',
-        borderRadius: 2
+        borderRadius: 2,
     },
     image: {
         width: '100%',

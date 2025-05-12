@@ -1,10 +1,11 @@
+import json
 from rest_framework import viewsets, generics, status, parsers, permissions
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 import cloudinary.api
 
 from eshopapis.models import Product, Store, User, VerificationSeller, ProductVariant, Attribute, AttributeValue, Order, \
-    OrderDetail, CartDetail, Cart
+    OrderDetail, CartDetail, Cart, Category
 from eshopapis import serializers, perms, paginators
 
 
@@ -31,11 +32,32 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
         return Response(serializers.UserSerializer(request.user).data)
 
 
+class CategoryViewSet(viewsets.ViewSet, generics.ListAPIView):
+    queryset = Category.objects.all()
+    serializer_class = serializers.CategorySerializer
+
+
 # Return list of all product
 class ProductViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Product.objects.filter(active=True)
     serializer_class = serializers.ProductSerializer
     pagination_class = paginators.ProductPage
+
+    # ?category_id = 1 & category_id = 2 & category_id = 3
+    def get_queryset(self):
+        queryset = self.queryset
+
+        # Tìm kiếm search bar
+        q = self.request.query_params.get('q')
+        if q:
+            queryset = queryset.filter(name__icontains=q)
+
+        # Tìm kiếm theo category
+        cate_id = self.request.query_params.getlist('category_id')
+        if cate_id:
+            queryset = queryset.filter(category__id__in=cate_id).distinct()
+
+        return queryset
 
 
 # Return detail of product ( all variant of product)
@@ -49,6 +71,7 @@ class ProductCreateViewSet(viewsets.ViewSet, generics.CreateAPIView):
     queryset = Product.objects.filter(active=True).all()
     serializer_class = serializers.ProductCreateSerializer
     permission_classes = [perms.IsSeller]  # Just for seller
+    parser_classes = [parsers.MultiPartParser]
 
     def create(self, request, *args, **kwargs):
         """
@@ -58,51 +81,94 @@ class ProductCreateViewSet(viewsets.ViewSet, generics.CreateAPIView):
         Xử lý danh sách biến thể (variants) của sản phẩm
         Tạo và gắn các thuộc tính cho từng biến thể
         """
-        data = request.data.copy()
-        # Lấy store của user gửi request
         store = Store.objects.filter(owner=self.request.user).first()
 
         # Dữ liệu mặc định hợp lệ
         default_data = {
             "store": store.id,
-            'productvariant_set': [],  # Để trống để lưu product trước làm khóa ngoại cho product_variant
+            "logo": 'not_found',
+            "productvariant_set": [],  # Để trống để lưu product trước làm khóa ngoại cho product_variant
         }
+
+        # Chuyển category_set từ chuỗi '2,3,4' => [2, 3, 4]
+        category_raw = request.data.get("category_set")
+        if category_raw:
+            if isinstance(category_raw, str):
+                try:
+                    request.data.setlist("category_set", [int(i) for i in category_raw.split(",")])
+                except ValueError:
+                    return Response({"detail": "category_set phải là danh sách số nguyên."}, status=400)
 
         # Thêm default data và data để lưu trước
         for field, default_value in default_data.items():
-            if field not in data:
-                data[field] = default_value
+            if field not in request.data:
+                if field == "productvariant_set":
+                    request.data.setlist("productvariant_set", [])
+                else:
+                    request.data[field] = default_value
 
-        serializer = self.get_serializer(data=data)  # bọc dữ liệu vào serializer để kiểm tra
-        serializer.is_valid(raise_exception=True)  # Kiểm tra dữ liệu hợp lệ không
+        serializer = self.get_serializer(data=request.data)  # bọc dữ liệu vào serializer để kiểm tra
+        serializer.is_valid(raise_exception=True)
         product = serializer.save()  # Hợp lệ rồi thì lưu dữ liệu (create product)
 
-        if data["variants"]:
-            variants = data.pop("variants")  # Lấy toàn bộ variants ra
-            for variant in variants:
-                attributes = []
+        index = 0
+        while True:
+            prefix = f"variants[{index}]"
+            price = request.data.get(f"{prefix}[price]")
+            quantity = request.data.get(f"{prefix}[quantity]")
+            attributes_json = request.data.get(f"{prefix}[attributes]")
+            logo_file = request.FILES.get(f"{prefix}[logo]")
 
-                attrs = variant.pop("attributes") # lấy từng attribute value ra để lưu
-                for attr in attrs:
-                    attr_obj, _ = Attribute.objects.get_or_create(
-                        name=attr["name"])  # return (<Attribute: name>, True/False)
-                    attr_value, _ = AttributeValue.objects.get_or_create(
-                        value=attr["value"],
-                        attribute=attr_obj,
-                    )  # return (<AttributeValue: value>, True/False)
+            if not price and not quantity:
+                break  # Không còn variant nào nữa
 
-                    attributes.append(attr_value.id)
-
-                product_variant = ProductVariant.objects.create(
-                    quantity=variant["quantity"],
-                    price=variant["price"],
-                    product=product,
+            attributes = []
+            attrs = json.loads(attributes_json) # lấy từng attribute value ra để lưu
+            for attr in attrs:
+                attr_obj, _ = Attribute.objects.get_or_create(
+                    name=attr["name"])
+                attr_value, _ = AttributeValue.objects.get_or_create(
+                    value=attr["value"],
+                    attribute=attr_obj,
                 )
-                product_variant.attributes.set(attributes)
-            #
-            #     product.productvariant_set.add(product_variant)
-            #
-            # product.save()
+                attributes.append(attr_value.id)
+
+            product_variant = ProductVariant.objects.create(
+                quantity=quantity,
+                price=price,
+                logo = logo_file,
+                product=product
+            )
+            product_variant.attributes.set(attributes)
+            index += 1
+
+        # if request.data.get("variants"):
+        #     variants = request.data["variants"]  # Lấy toàn bộ variants ra
+        #     for variant in variants:
+        #         attributes = []
+        #
+        #         attrs = variant.pop("attributes") # lấy từng attribute value ra để lưu
+        #         for attr in attrs:
+        #             attr_obj, _ = Attribute.objects.get_or_create(
+        #                 name=attr["name"])  # return (<Attribute: name>, True/False)
+        #             attr_value, _ = AttributeValue.objects.get_or_create(
+        #                 value=attr["value"],
+        #                 attribute=attr_obj,
+        #             )  # return (<AttributeValue: value>, True/False)
+        #
+        #             attributes.append(attr_value.id)
+        #
+        #         product_variant = ProductVariant.objects.create(
+        #             quantity=variant["quantity"],
+        #             price=variant["price"],
+        #             product=product,
+        #         )
+        #
+        #         if variant.get("logo"):  # dùng get để tránh lỗi KeyError nếu logo không tồn tại
+        #             product_variant.logo = variant["logo"]
+        #             product_variant.save()
+        #
+        #         product_variant.attributes.set(attributes)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -155,7 +221,7 @@ class VerificationSellerViewSet(viewsets.ViewSet, generics.ListCreateAPIView):
 
 
 # PATCH API for employee accept or reject the request become seller
-class ActionVerificationViewSet(viewsets.ViewSet):
+class ActionVerificationViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
     queryset = VerificationSeller.objects.filter(status='PE')
     serializer_class = serializers.VerificationSellerSerializer
     permission_classes = [perms.IsEmployee]

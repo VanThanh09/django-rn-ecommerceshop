@@ -11,16 +11,29 @@ import { Icon } from 'react-native-paper';
 import Profile from './components/user/Profile';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import StoreRegister from './components/user/StoreRegister';
+import ProductDetail from './components/home/ProductDetail';
+import AddProduct from './components/store/AddProduct';
 
-const Stack = createNativeStackNavigator();
-function MyStack() {
+const ProfileStack = createNativeStackNavigator();
+function MyProfileStack() {
   return (
-    <Stack.Navigator>
-      <Stack.Screen name="index" component={Profile} options={{ title: "Tài khoản", headerShown: false }} />
-      <Stack.Screen name="login" component={Login} options={{ title: "Đăng nhập" }} />
-      <Stack.Screen name="register" component={Register} options={{ title: "Đăng ký" }} />
-      <Stack.Screen name="storeRegister" component={StoreRegister} options={{ title: "Đăng ký cửa hàng" }} />
-    </ Stack.Navigator>
+    <ProfileStack.Navigator>
+      <ProfileStack.Screen name="profileMain" component={Profile} options={{ title: "Tài khoản", headerShown: false }} />
+      <ProfileStack.Screen name="login" component={Login} options={{ title: "Đăng nhập" }} />
+      <ProfileStack.Screen name="register" component={Register} options={{ title: "Đăng ký" }} />
+      <ProfileStack.Screen name="storeRegister" component={StoreRegister} options={{ title: "Đăng ký cửa hàng" }} />
+      <ProfileStack.Screen name='addProduct' component={AddProduct} options={{ title: "Thêm sản phẩm" }} />
+    </ ProfileStack.Navigator>
+  )
+}
+
+const HomeStack = createNativeStackNavigator();
+function MyHomeStack() {
+  return (
+    <HomeStack.Navigator>
+      <HomeStack.Screen name="homeMain" component={Home} options={{ headerShown: false }} />
+      <HomeStack.Screen name="productDetail" component={ProductDetail} options={{ title: "" }} />
+    </HomeStack.Navigator>
   )
 }
 
@@ -29,18 +42,15 @@ function MyTabs() {
   const user = useContext(MyUserContext);
   return (
     <Tab.Navigator screenOptions={{ headerShown: false, tabBarStyle: styles.tabBarStyle, tabBarHideOnKeyboard: true }}>
-      <Tab.Screen name="home" component={Home} options={{ tabBarIcon: () => <Icon size={30} source="home" /> }} />
-      <Tab.Screen
-        name="account"
-        component={MyStack}
-        options={{ tabBarIcon: () => <Icon size={30} source="account" /> }}
+      <Tab.Screen name="home" component={MyHomeStack} options={{ tabBarIcon: () => <Icon size={30} source="home" /> }} />
+      <Tab.Screen name="account" component={MyProfileStack} options={{ tabBarIcon: () => <Icon size={30} source="account" /> }}
         listeners={({ navigation }) => ({
           tabPress: e => {
             // Ngăn mặc định
             e.preventDefault();
             // Reset lại stack navigator để luôn quay về "index"
             navigation.navigate('account', {
-              screen: 'index',
+              screen: 'profileMain',
             });
           },
         })}
