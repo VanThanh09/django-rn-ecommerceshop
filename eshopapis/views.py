@@ -1,8 +1,11 @@
 import json
+from logging import exception
+
 from rest_framework import viewsets, generics, status, parsers, permissions
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 import cloudinary.api
+from django.db.models import Min
 
 from eshopapis.models import Product, Store, User, VerificationSeller, ProductVariant, Attribute, AttributeValue, Order, \
     OrderDetail, CartDetail, Cart, Category
@@ -31,6 +34,15 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     def get_current_user(self, request):
         return Response(serializers.UserSerializer(request.user).data)
 
+    @action(methods=['get'], url_path='info_user', detail=True)
+    def get_info_user(self, request, pk=None):
+        try:
+            user = User.objects.get(pk=pk)
+            return Response(serializers.InfoUserSerializer(user).data)
+        except Exception as e:
+            print(e)
+            return Response({'detail': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
 
 class CategoryViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Category.objects.all()
@@ -39,7 +51,7 @@ class CategoryViewSet(viewsets.ViewSet, generics.ListAPIView):
 
 # Return list of all product
 class ProductViewSet(viewsets.ViewSet, generics.ListAPIView):
-    queryset = Product.objects.filter(active=True)
+    queryset = Product.objects.filter(active=True).order_by('id')
     serializer_class = serializers.ProductSerializer
     pagination_class = paginators.ProductPage
 
@@ -56,6 +68,24 @@ class ProductViewSet(viewsets.ViewSet, generics.ListAPIView):
         cate_id = self.request.query_params.getlist('category_id')
         if cate_id:
             queryset = queryset.filter(category__id__in=cate_id).distinct()
+
+        queryset = queryset.annotate(price=Min('productvariant__price')) # Tạo cột ảo (min_price) để sắp xếp ảo
+
+        # Tìm giá thấp nhấp, giá cao nhất
+        price_min = self.request.query_params.get('price_min')
+        price_max = self.request.query_params.get('price_max')
+        if price_min:
+            queryset = queryset.filter(price__gte=price_min)
+        if price_max:
+            queryset = queryset.filter(price__lte=price_max)
+
+        # Sắp xếp theo giá
+        order_price = self.request.query_params.get('order_price')
+        if order_price:
+            if order_price == '1':
+                queryset=queryset.order_by('price')
+            elif order_price == '-1':
+                queryset=queryset.order_by('-price')
 
         return queryset
 
@@ -142,53 +172,44 @@ class ProductCreateViewSet(viewsets.ViewSet, generics.CreateAPIView):
             product_variant.attributes.set(attributes)
             index += 1
 
-        # if request.data.get("variants"):
-        #     variants = request.data["variants"]  # Lấy toàn bộ variants ra
-        #     for variant in variants:
-        #         attributes = []
-        #
-        #         attrs = variant.pop("attributes") # lấy từng attribute value ra để lưu
-        #         for attr in attrs:
-        #             attr_obj, _ = Attribute.objects.get_or_create(
-        #                 name=attr["name"])  # return (<Attribute: name>, True/False)
-        #             attr_value, _ = AttributeValue.objects.get_or_create(
-        #                 value=attr["value"],
-        #                 attribute=attr_obj,
-        #             )  # return (<AttributeValue: value>, True/False)
-        #
-        #             attributes.append(attr_value.id)
-        #
-        #         product_variant = ProductVariant.objects.create(
-        #             quantity=variant["quantity"],
-        #             price=variant["price"],
-        #             product=product,
-        #         )
-        #
-        #         if variant.get("logo"):  # dùng get để tránh lỗi KeyError nếu logo không tồn tại
-        #             product_variant.logo = variant["logo"]
-        #             product_variant.save()
-        #
-        #         product_variant.attributes.set(attributes)
-
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 # Return a store detail
-class StoreDetailViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
+class StoreDetailViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Store.objects.filter(active=True)
     serializer_class = serializers.StoreSerializer
+    pagination_class = paginators.ProductPage
+    permission_classes = [perms.IsSeller]
+
+    def get_queryset(self):
+        queryset = self.queryset
+        store = self.request.user.store_set.first()
+        if store:
+            queryset = queryset.filter(id=store.id)
+        return queryset
 
     # Return all product of a store
-    @action(methods=['get'], detail=True, url_path='products')
-    def get_products(self, request, pk):
-        products = self.get_object().product_set.filter(active=True)
+    @action(methods=['get'], detail=False, url_path='products')
+    def get_products(self, request, pk=None):
+        store = self.request.user.store_set.first()
+        if not store:
+            return Response({"detail": "Store not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response(serializers.ProductSerializer(products, many=True).data, status=status.HTTP_200_OK)
+        products = Product.objects.filter(store__id=store.id).order_by('created_date')
+
+        page = self.paginate_queryset(products)
+        # Nếu có phân trang
+        if page:
+            serializer = serializers.ProductSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        else:
+            return Response(serializers.ProductSerializer(products, many=True).data, status=status.HTTP_200_OK)
 
 
 # POST api for customer want to become seller
 class VerificationSellerViewSet(viewsets.ViewSet, generics.ListCreateAPIView):
-    queryset = VerificationSeller.objects.all()
+    queryset = VerificationSeller.objects.filter(status='PE').order_by('created_date')
     serializer_class = serializers.VerificationSellerSerializer
     parser_classes = [parsers.MultiPartParser]
 
@@ -212,8 +233,6 @@ class VerificationSellerViewSet(viewsets.ViewSet, generics.ListCreateAPIView):
             return Response({"detail": "The request already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
         return super().create(request, *args, **kwargs)
-
-
 
     # save the request with user send request
     def perform_create(self, serializer):

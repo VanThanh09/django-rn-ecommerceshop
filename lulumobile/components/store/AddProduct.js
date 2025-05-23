@@ -311,13 +311,13 @@ const AddProduct = () => {
 
             const token = await AsyncStorage.getItem('token');
 
-            for (let i = 1; i < 10; i++) {
-                let res = await authApis(token).post(endpoints['create_product'], form, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                    }
-                })
-            }
+            // for (let i = 1; i < 10; i++) {
+            let res = await authApis(token).post(endpoints['create_product'], form, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                }
+            })
+            // }
 
 
             if (res.status === 201) {
@@ -326,7 +326,8 @@ const AddProduct = () => {
                     style: 'cancel'
                 }]);
                 nav.reset({
-                    routes: [{ name: 'addProduct' }],
+                    index: 0,
+                    routes: [{ name: 'storeMain' }],
                 });
             }
         } catch (ex) {
@@ -338,7 +339,9 @@ const AddProduct = () => {
 
     return (
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+            >
                 <View style={{ flex: 1 }}>
                     {/* Hình ảnh */}
                     <View style={styles.viewContainer}>
@@ -521,7 +524,10 @@ const AddProduct = () => {
                                 style: 'cancel',
                             }, {
                                 text: 'OK',
-                                onPress: () => nav.navigate('profileMain'),
+                                onPress: () => nav.reset({
+                                    index: 0,
+                                    routes: [{ name: 'storeMain' }],
+                                }),
                             }])
                         }}>
                             <Button style={[{

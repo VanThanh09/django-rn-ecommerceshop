@@ -1,10 +1,13 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
 import MyStyles from "../../../styles/MyStyles"
 import { Button, Icon, IconButton, Searchbar } from "react-native-paper"
-import { useContext, useState } from "react"
-import { MyUserContext } from "../../../configs/MyContext"
+import { useState } from "react"
+import { useNavigation } from "@react-navigation/native"
 
 const HeaderHome = ({ value, onChangeText }) => {
+    const [isSearching, setIsSearching] = useState(false);
+    const nav = useNavigation();
+
     return (
         <View style={MyStyles.bgPrimaryColor}>
             <View style={styles.containerRow}>
@@ -15,6 +18,8 @@ const HeaderHome = ({ value, onChangeText }) => {
                         inputStyle={styles.input}
                         iconColor="#888"
                         onChangeText={onChangeText}
+                        // onFocus={() => setIsSearching(true)}
+                        // onBlur={() => setIsSearching(false)}
                         value={value}
                     />
                 </View>
@@ -28,7 +33,9 @@ const HeaderHome = ({ value, onChangeText }) => {
                     <IconButton
                         icon="chat-processing-outline"
                         size={25}
-                        onPress={() => console.log('Pressed')}
+                        onPress={() => nav.navigate("account", {
+                            screen: "conversations",
+                        })}
                         iconColor="#fff"
                     />
                 </View>

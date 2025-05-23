@@ -3,9 +3,11 @@ import MyStyles from "../../../styles/MyStyles"
 import { Button, Icon, IconButton } from "react-native-paper"
 import { useContext } from "react"
 import { MyUserContext } from "../../../configs/MyContext"
+import { useNavigation } from "@react-navigation/native"
 
-const HearderProfile = ({ onLoginPress, onRegisterPress, onLogoutPress }) => {
+const HeaderProfile = ({ onLoginPress, onRegisterPress, onLogoutPress }) => {
     const user = useContext(MyUserContext);
+    const nav = useNavigation();
 
     return (
         <View style={MyStyles.bgPrimaryColor}>
@@ -26,7 +28,7 @@ const HearderProfile = ({ onLoginPress, onRegisterPress, onLogoutPress }) => {
                     <IconButton
                         icon="chat-processing-outline"
                         size={25}
-                        onPress={() => console.log('Pressed')}
+                        onPress={() => nav.navigate("conversations")}
                         iconColor="#fff"
                     />
                 </View>
@@ -82,7 +84,7 @@ const HearderProfile = ({ onLoginPress, onRegisterPress, onLogoutPress }) => {
     )
 }
 
-export default HearderProfile;
+export default HeaderProfile;
 
 const styles = StyleSheet.create({
     containerRow: {

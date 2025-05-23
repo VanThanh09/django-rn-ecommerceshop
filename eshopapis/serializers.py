@@ -9,14 +9,21 @@ class StoreSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Store
-        fields = ['id', 'name', 'description', 'owner']
+        fields = ['id', 'name', 'description', 'owner', 'logo']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        data['logo'] = instance.logo.url
+
+        return data
 
 
 # UserSerializer trả ra thông tin của user
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'username', 'password', 'email', 'avatar', 'user_role']
+        fields = ['id', 'first_name', 'last_name', 'username', 'password', 'email', 'avatar', 'user_role']
         extra_kwargs = {
             'password': {
                 'write_only': True
@@ -41,11 +48,18 @@ class UserSerializer(serializers.ModelSerializer):
         return data
 
 
-# # AttributeSerializer trả ra thông tin tên của attribute
-# class AttributeSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Attribute
-#         fields = ['name']
+# Trả ra thông tin user khi người khác xem
+class InfoUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'first_name', 'last_name', 'avatar']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        data['avatar'] = instance.avatar.url
+
+        return data
 
 
 # AttributeValueSerializer trả ra thông tin tên và giá trị của attribute ( Màu sắc - Đen, Size - XL)
@@ -178,6 +192,7 @@ class ProductCreateSerializer(serializers.ModelSerializer):
         model = Product
         fields = ['id', 'name', 'description', 'logo', 'store', 'category_set', 'productvariant_set']
 
+# ==============================================================================================
 
 # Same with ProductVariantSerializer but add with product name
 class ProductVariantWithProductNameSerializer(serializers.ModelSerializer):

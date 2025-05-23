@@ -69,6 +69,9 @@ class Store(BaseModel):
     def __str__(self):
         return self.name
 
+    class Meta:
+        unique_together = ('owner',)
+
 
 class Product(BaseModel):
     name = models.CharField(max_length=255)
@@ -111,7 +114,7 @@ class ProductVariant(BaseModel):
     attributes = models.ManyToManyField('AttributeValue', blank=True)  # Các giá trị thuộc tính của biến thể
 
     def __str__(self):
-        return f"{self.product.name} - Tồn kho: {self.quantity} - Giá: {"{:,.0f}".format(self.price)} VND"
+        return f"{self.product.name} - Tồn kho: {self.quantity} - Giá: {'{:,.0f}'.format(self.price)} VND"
 
 
 class Order(models.Model):

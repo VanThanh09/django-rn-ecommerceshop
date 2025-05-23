@@ -12,7 +12,7 @@ const ProductDetail = ({ route }) => {
         try {
             let res = await Apis.get(endpoints['product'](productId));
             setProduct(res.data);
-            console.info(res.data)
+            console.info(JSON.stringify(res.data, null, 2));
         } catch (error) {
             console.error("Failed to load product:", error);
         }

@@ -1,6 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { NavigationContainer } from '@react-navigation/native';
-import { Platform, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { getFocusedRouteNameFromRoute, NavigationContainer } from '@react-navigation/native';
+import { StyleSheet } from 'react-native';
 import Home from './components/home/Home';
 import Register from './components/user/Register';
 import Login from './components/user/Login';
@@ -13,6 +13,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import StoreRegister from './components/user/StoreRegister';
 import ProductDetail from './components/home/ProductDetail';
 import AddProduct from './components/store/AddProduct';
+import Store from './components/store/Store';
+import StoreRequests from './components/employee/StoreRequsets';
+import RequestDetail from './components/employee/RequestDetail';
+import Conversations from './components/chat/Conversations';
+import ChatScreen from './components/chat/ChatScreen';
 
 const ProfileStack = createNativeStackNavigator();
 function MyProfileStack() {
@@ -22,7 +27,8 @@ function MyProfileStack() {
       <ProfileStack.Screen name="login" component={Login} options={{ title: "Đăng nhập" }} />
       <ProfileStack.Screen name="register" component={Register} options={{ title: "Đăng ký" }} />
       <ProfileStack.Screen name="storeRegister" component={StoreRegister} options={{ title: "Đăng ký cửa hàng" }} />
-      <ProfileStack.Screen name='addProduct' component={AddProduct} options={{ title: "Thêm sản phẩm" }} />
+      <ProfileStack.Screen name="conversations" component={Conversations} options={{ title: "Chat" }} />
+      <ProfileStack.Screen name="chat" component={ChatScreen} options={{ title: "Chat", headerShown: false }} />
     </ ProfileStack.Navigator>
   )
 }
@@ -37,29 +43,70 @@ function MyHomeStack() {
   )
 }
 
+const StoreStack = createNativeStackNavigator();
+function MyStoreStack() {
+  return (
+    <StoreStack.Navigator>
+      <StoreStack.Screen name="storeMain" component={Store} options={{ title: "Cửa hàng của bạn", headerShown: false }} />
+      <StoreStack.Screen name='addProduct' component={AddProduct} options={{ title: "Thêm sản phẩm" }} />
+    </StoreStack.Navigator>
+  )
+}
+
+const EmployeeStack = createNativeStackNavigator();
+function MyEmployeeStack() {
+  return (
+    <EmployeeStack.Navigator>
+      <EmployeeStack.Screen name="employeeMain" component={StoreRequests} options={{ title: "Danh sách yêu cầu" }} />
+      <EmployeeStack.Screen name='requestDetail' component={RequestDetail} options={{ title: "Thông tin yêu cầu" }} />
+    </EmployeeStack.Navigator>
+  )
+}
+
 const Tab = createBottomTabNavigator();
 function MyTabs() {
   const user = useContext(MyUserContext);
   return (
     <Tab.Navigator screenOptions={{ headerShown: false, tabBarStyle: styles.tabBarStyle, tabBarHideOnKeyboard: true }}>
-      <Tab.Screen name="home" component={MyHomeStack} options={{ tabBarIcon: () => <Icon size={30} source="home" /> }} />
-      <Tab.Screen name="account" component={MyProfileStack} options={{ tabBarIcon: () => <Icon size={30} source="account" /> }}
+      <Tab.Screen name="home" component={MyHomeStack} options={{ tabBarIcon: () => <Icon size={30} source="home" color="#797979" />, title: "Trang chủ" }} />
+
+
+      {user !== null && user.user_role === 'SE' && <>
+        <Tab.Screen name="store" component={MyStoreStack} options={{ tabBarIcon: () => <Icon size={30} source="store" color="#797979" />, title: "Cửa hàng" }} />
+      </>}
+
+      {user !== null && user.user_role === 'EM' && <>
+        <Tab.Screen name="requests" component={MyEmployeeStack} options={{ tabBarIcon: () => <Icon size={30} source="format-list-bulleted" color="#797979" />, title: "Yêu cầu" }} />
+      </>}
+
+      <Tab.Screen
+        name="account"
+        component={MyProfileStack}
+
+        options={({ route }) => {
+          const tabHidden = ['chat'];
+          const routeName = getFocusedRouteNameFromRoute(route);
+          return {
+            tabBarIcon: () => <Icon size={30} source="account" color="#797979" />,
+            title: "Người dùng",
+            tabBarStyle: tabHidden.includes(routeName)
+              ? { display: 'none' }
+              : styles.tabBarStyle
+          };
+        }}
+
         listeners={({ navigation }) => ({
           tabPress: e => {
             // Ngăn mặc định
             e.preventDefault();
-            // Reset lại stack navigator để luôn quay về "index"
+            // Reset lại stack navigator để luôn quay về "profileMain"
             navigation.navigate('account', {
               screen: 'profileMain',
             });
           },
         })}
       />
-      {user === null ? <>
 
-      </> : <>
-
-      </>}
     </Tab.Navigator>
   )
 }

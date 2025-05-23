@@ -1,38 +1,15 @@
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import mark_safe
-
 from .models import *
 
 
 class MyAdminSite(admin.AdminSite):
-    site_header = 'SÀN GIAO DỊCH THƯƠNG MẠI ĐIỆN TỬ'
-
+    site_header = 'ADMIN PAGE'
+    site_title = 'Admin Panel'
+    index_title = 'Welcome to Admin Dashboard'
 
 admin_site = MyAdminSite(name='eShop')
-
-
-class MyUserAdmin(admin.ModelAdmin):
-    list_display = ['user_view', 'user_role']
-    list_filter = ['user_role']
-
-    # overwrite function save default for hash the password
-    def save_model(self, request, obj, form, change):
-        # check not change (creat new) and 'password' in form.changed_data ( change the password exist)
-        if not change or 'password' in form.changed_data:
-            obj.set_password(obj.password)  # hass function
-        super().save_model(request, obj, form, change)  # call function to save
-
-    def user_view(self, obj):
-        if obj:
-            return mark_safe(
-                f"""
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <img src="{obj.avatar.url}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1px solid #ccc;" />
-                    <span>{obj.first_name} {obj.last_name}</span>
-                </div>
-                """
-            )
 
 
 class StoreAdmin(admin.ModelAdmin):
@@ -94,8 +71,14 @@ class StoreAdmin(admin.ModelAdmin):
             products = obj.product_set.all()
             product_links = [
                 f"""
-                <a href="/admin/eshopapis/product/{p.id}/change/">
-                <div style="display: flex; align-items: center; height: 30px; width: 100%"> {p.name}  </div>
+                <a href="/admin/eshopapis/product/{p.id}/change/" style="display: flex;" style="color: inherit;">
+                <div style="width:100px; height:100px; overflow:hidden; border:1px solid gray;">
+                    <img src="{p.logo.url}" style="width:100%; height:100%; object-fit:cover;" />
+                </div>
+                <div style="margin: 10px;">  
+                <div style="align-items: center; height: 30px; width: 100%; font-weight: bold; color: 'black'"> {p.name}  </div>
+                <div style="align-items: center; height: 30px; width: 100%"> {p.description}  </div>
+                </div>
                 </a>
                 """ for p in products]
             return mark_safe("<br>".join(product_links))
@@ -106,9 +89,10 @@ class StoreAdmin(admin.ModelAdmin):
     owner_view.short_description = "Owner"
     store_view.short_description = "STORE"
     count_product.short_description = "PRODUCTS"
+    product_view.short_description = "Products"
 
 
-admin_site.register(User, MyUserAdmin)
+admin_site.register(User)
 admin_site.register(Store, StoreAdmin)
 admin_site.register(VerificationSeller)
 admin_site.register(Product)

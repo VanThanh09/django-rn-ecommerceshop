@@ -1,14 +1,13 @@
 import { useContext, useState } from "react";
-import { Platform, ScrollView, StatusBar, StyleSheet, View } from "react-native";
+import { Alert, Platform, ScrollView, StatusBar, StyleSheet, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { MyDispatchContext, MyUserContext } from "../../configs/MyContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import HearderProfile from "../ui/profilePage/HeaderProfile";
+import HeaderProfile from "../ui/profilePage/HeaderProfile";
 import FeatureButton from "../ui/profilePage/FeatureButton";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const Profile = () => {
-    const user = useContext(MyUserContext);
     const dispatch = useContext(MyDispatchContext);
     const nav = useNavigation();
     const [loading, setLoading] = useState(false);
@@ -19,45 +18,45 @@ const Profile = () => {
         color: "#3a5998"
     }]
 
-    const sellerFeatures = [{
-        label: "Thêm sản phẩm",
-        icon: "plus-box",
-        color: "#3a5998"
-    }]
-
     const logout = async () => {
-        try {
-            setLoading(true);
-            await AsyncStorage.removeItem('token');
-            dispatch({
-                type: "logout"
-            });
+        if (!loading) {
+            try {
+                setLoading(true);
 
-            nav.navigate("home")
-        } catch (ex) {
-            console.error(ex)
-        } finally {
-            setLoading(false);
+                await AsyncStorage.removeItem('token');
+                dispatch({
+                    type: "logout"
+                });
+
+                nav.navigate("home")
+            } catch (ex) {
+                console.error(ex)
+            } finally {
+                setLoading(false);
+            }
         }
     }
 
-    const pressLogin = () => (nav.navigate("login"))
-    const pressRegister = () => (nav.navigate("register"))
-    const handleStoreRegister = () => (nav.navigate("storeRegister"))
-    const handleAddProduct = () => (nav.navigate('addProduct'))
+    const pressLogout = () => {
+        Alert.alert("Đăng xuất", "Bạn chắc chứ?", [{
+            text: "Cancel",
+            style: 'cancel',
+        }, {
+            text: "Đăng xuất",
+            onPress: () => logout(),
+        },
+        ])
+    }
+
+    const pressLogin = () => (nav.navigate("login"));
+    const pressRegister = () => (nav.navigate("register"));
+    const handleStoreRegister = () => (nav.navigate("storeRegister"));
 
     return (
         <SafeAreaView>
             {/* <View style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}> */}
-            <HearderProfile onLoginPress={pressLogin} onRegisterPress={pressRegister} onLogoutPress={logout} />
+            <HeaderProfile onLoginPress={pressLogin} onRegisterPress={pressRegister} onLogoutPress={pressLogout} />
             <ScrollView contentContainerStyle style={[styles.container]}>
-
-                {/* Hiện tính năng cho người bán */}
-                {user !== null && user.user_role === 'SE' && (
-                    <View style={styles.viewContainer}>
-                        {sellerFeatures.map(i => <FeatureButton label={i.label} icon={i.icon} color={i.color} onPress={handleAddProduct} key={i.label} />)}
-                    </View>
-                )}
 
                 {/* Tính năng chung */}
                 <View style={styles.viewContainer}>
