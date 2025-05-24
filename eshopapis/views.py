@@ -1,5 +1,4 @@
 import json
-from logging import exception
 
 from rest_framework import viewsets, generics, status, parsers, permissions
 from rest_framework.decorators import action, api_view, permission_classes
