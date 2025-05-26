@@ -65,7 +65,7 @@ class Store(BaseModel):
     owner = models.ForeignKey(User, on_delete=models.CASCADE)  # Chủ sở hữu cửa hàng
     owner_name = models.CharField(max_length=255)
     owner_ident = models.IntegerField()
-
+    
     def __str__(self):
         return self.name
 
@@ -108,6 +108,7 @@ class ProductVariant(BaseModel):
     price = models.FloatField(default=0)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)  # Thuộc về sản phẩm nào
     attributes = models.ManyToManyField('AttributeValue', blank=True)  # Các giá trị thuộc tính của biến thể
+    active = models.BooleanField(default=True)  # Khi sản phẩm hết số lượng,hoặc bị xóa ,active=False, không thể mua sản phẩm này dù con trong giỏ hàng
 
     def __str__(self):
         return f"{self.product.name} - Tồn kho: {self.quantity} - Giá: {"{:,.0f}".format(self.price)} VND"
@@ -118,25 +119,33 @@ class Order(models.Model):
         ONLINE = 'ON', _("ONLINE") # Thanh toán online ngay khi bắt đầu mua
         OFFLINE = 'OF', _("OFFLINE") # Thanh toán sau khi nhận được hàng
 
+    created_date=models.DateTimeField(auto_now_add=True)
+    payment_method=models.CharField(max_length=2, choices=PaymentMethod) # Phương thức thanh toán
+    total_price=models.FloatField(default=0)
+    customer=models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="customer_orders")
+    paid = models.BooleanField(default=False)
+
+class OrderDetail(models.Model):
     class OrderStatus(models.TextChoices):
         PENDING = 'PE', _("PENDING") # Khi sản phẩm bắt được khách hàng xác nhận mua
         SUCCESS = 'SU', _("SUCCESS") # Sau khi khách hàng xác nhận đã nhận được hàng
         SHIPPING = 'SH', _("SHIPPING") # Sản phẩm đã rời khỏi kho của người bán
         CANCEL = 'CA', _("CANCEL") # Khách hàng hủy đơn khi đang ở PENDING, khách không nhận hàng, ....
-
-    created_date=models.DateTimeField(auto_now_add=True)
-    payment_method=models.CharField(max_length=2, choices=PaymentMethod) # Phương thức thanh toán
-    order_status=models.CharField(max_length=2, choices=OrderStatus) # Trạng thái đơn hàng
-    total_price=models.FloatField(default=0)
-    customer=models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="customer_orders")
-    store = models.ForeignKey(Store, on_delete=models.SET_NULL, null=True, related_name="store_orders")
-
-
-class OrderDetail(models.Model):
     quantity=models.IntegerField(default=1)
     order=models.ForeignKey(Order, on_delete=models.CASCADE) # Thuộc order nào
     product_variant=models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True) # Biến thể sản phẩm nào
+    order_status=models.CharField(max_length=2, choices=OrderStatus, default='PE') # Trạng thái đơn hàng
+    store = models.ForeignKey(Store, on_delete=models.SET_NULL, null=True, related_name="store_orders")
 
+
+class Payment(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, related_name="payments")
+    request_id = models.CharField(max_length=50)
+    order_payment_id = models.CharField(max_length=50)
+    amount = models.FloatField(default=0)
+    created_date = models.DateTimeField(auto_now_add=True)
+    portal_payment = models.CharField(max_length=30, default="MOMO")
+    payment_status = models.BooleanField(default=False)
 
 class Cart(models.Model):
     total_quantity = models.IntegerField(default=0)
@@ -153,36 +162,39 @@ class CartDetail(models.Model):
     quantity = models.IntegerField(validators=[MinValueValidator(0)],default=0)
     active = models.BooleanField(default=True)  # Khi sản phẩm hết số lượng,hoặc bị xóa ,active=False, không thể mua sản phẩm này dù con trong giỏ hàng
 
-
 class CommentUser(models.Model):
     user = models.ForeignKey('User', on_delete=models.CASCADE, null=False)
     content=models.TextField() # Nội dung bình luận
-    product_variant = models.ForeignKey("ProductVariant", on_delete=models.CASCADE, null=False)
+    product_variant = models.ForeignKey("ProductVariant", on_delete=models.CASCADE, null=False, related_name='comments')
     rating = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)],default=5)
+    like = models.IntegerField(validators=[MinValueValidator(0)], default=0)
+    created_date = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f"Comment id {self.id} {self.user.username} - {self.product_variant.id} - {self.like}"
+
+
+class CommentImage(models.Model):
+    image = CloudinaryField(null=False)
+    comment = models.ForeignKey(CommentUser,on_delete=models.CASCADE, null=False, related_name='image_list')
 
 class CommentSeller(models.Model):
     seller = models.ForeignKey('User', on_delete=models.CASCADE, null=False)
     content=models.TextField() # Nội dung bình luận
-    rep_cmt = models.ForeignKey('CommentUser', null=False, on_delete=models.CASCADE)
+    rep_cmt = models.OneToOneField('CommentUser', null=False, on_delete=models.CASCADE, related_name='rep_cmt')
 
-
-class Rating(models.Model):
-    star = models.SmallIntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)], null =False)
-    product = models.ManyToManyField('Product', through="ProductRating", related_name="ratings")
     def __str__(self):
-        return f"{self.star} star"
-
+        return f"{self.seller.username} reply {self.rep_cmt.id}"
 
 class ProductRating(models.Model):
-    rating_star = models.ForeignKey(Rating, null = False, on_delete=models.CASCADE)
+    user = models.ForeignKey('User', on_delete=models.CASCADE, null=False)
+    rating = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)],default=5)
     product = models.ForeignKey(Product, null = False, on_delete=models.CASCADE)
-    count = models.IntegerField(default=0)
-    class Meta:
-        unique_together =  ('product', 'rating_star',)
-    def __str__(self):
-        return f"{self.product.name} has {self.count} for {self.rating_star.star} star"
 
+class StoreRating(models.Model):
+    user = models.ForeignKey('User', on_delete=models.CASCADE, null=False)
+    rating = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)],default=5)
+    store = models.ForeignKey(Store, null = False, on_delete=models.CASCADE)
 
 class Conversation(models.Model):
     users = models.ManyToManyField(User, related_name='conversations')

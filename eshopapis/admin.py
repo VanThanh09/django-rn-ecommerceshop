@@ -109,9 +109,15 @@ class StoreAdmin(admin.ModelAdmin):
 
 
 admin_site.register(User, MyUserAdmin)
-admin_site.register(Store, StoreAdmin)
+admin_site.register(Store)
 admin_site.register(VerificationSeller)
 admin_site.register(Product)
 admin_site.register(ProductVariant)
 admin_site.register(Category)
 admin_site.register(Order)
+admin_site.register(Attribute)
+admin_site.register(AttributeValue)
+admin_site.register(CommentUser)
+admin_site.register(CommentImage)
+admin_site.register(CommentSeller)
+

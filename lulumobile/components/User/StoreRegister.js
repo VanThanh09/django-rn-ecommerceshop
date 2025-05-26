@@ -15,7 +15,7 @@ const StoreRegister = () => {
         field: "temp_store_name",
         securityTextEntry: false,
     }, {
-        label: "Mô tả của hàng",
+        label: "Mô tả cửa hàng",
         field: "temp_store_description",
         securityTextEntry: false,
     }];

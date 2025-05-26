@@ -1,6 +1,7 @@
 import { Image, StyleSheet, Text, View } from "react-native";
 
 const ProductCard = ({ product }) => {
+    //console.log(product.logo)
     return (
         <View style={styles.card}>
             <Image source={{ uri: product.logo }} style={styles.image} />

@@ -1,13 +1,13 @@
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Button, HelperText, Icon, TextInput } from "react-native-paper";
 import MyStyles from "../../styles/MyStyles";
 import Apis, { authApis, endpoints } from "../../configs/Apis";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { MyDispatchContext } from "../../configs/MyContext";
-
-const Login = () => {
+import { CartContext, MyDispatchContext } from "../../configs/MyContext";
+import { IconButton } from 'react-native-paper'
+const Login = ({ route }) => {
     const info = [{
         label: "Tên đăng nhập",
         field: "username",
@@ -21,14 +21,26 @@ const Login = () => {
         autoCapitalize: "none"
     }];
 
-
     const [user, setUser] = useState({});
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [msg, setMsg] = useState(null);
     const nav = useNavigation();
     const dispatch = useContext(MyDispatchContext);
+    const { cartDispatch } = useContext(CartContext)
 
+    useEffect(() => {
+        const { nestedScreen, previousRoute, prevRouteParams } = route.params || {}
+        if (previousRoute) {
+
+            nav.setOptions({
+                headerLeft: () => (
+                    <IconButton icon="chevron-left" size={30} iconColor="#fa5230"
+                        onPress={nestedScreen === undefined ? () => nav.navigate(previousRoute, { ...prevRouteParams }) : () => { nav.navigate(nestedScreen, { screen: previousRoute, params: { ...prevRouteParams } }) }} />
+                )
+            })
+        }
+    }, [route, nav])
 
     const setState = (value, field) => {
         setUser({ ...user, [field]: value });
@@ -53,10 +65,11 @@ const Login = () => {
                 setLoading(true);
                 setMsg(null);
 
+
                 let res = await Apis.post(endpoints['login'], {
                     ...user,
-                    'client_id': 'lmshBZpKvz0r3x51CfQ2Hay8f0C0TvVIB8Blb9OJ',
-                    'client_secret': 'SWVNeiOP5z4LyZgs8ErBcKZUA6wy6zzBs0A2eDyu7sdHau9uZ60LBNJFdvEbWtbBPw1mHSDlFyT2pqqGfwe8wOUYjfmPGnVqL3cHZkE7AH5EPZWqEJYVBcXykJ6yVBD5',
+                    'client_id': 'eB5z6lDf1lWumxja2xtM17UjBc6t7FgK1lKnFrpB',
+                    'client_secret': 'TJrWcqQOAI8hbJo5PJCPRvokfuwC2LOrhLiRFGjWppG2NA3qF4CwOy1RVZJPKEmF1pSdpPRTifgk4FyjVRk7PdQ7pn03E8eHMRcZ6opeYBxEnTg31Rfwbnr1MXOPG9oN',
                     'grant_type': 'password'
                 }, {
                     headers: {
@@ -64,18 +77,33 @@ const Login = () => {
                     }
                 });
 
+
                 await AsyncStorage.setItem('token', res.data.access_token);
 
                 const token = await AsyncStorage.getItem('token');
                 let u = await authApis(token).get(endpoints['current_user']);
-                console.info(u.data)
 
                 dispatch({
                     "type": "login",
                     "payload": u.data
                 });
 
-                nav.navigate('home');
+                // cart- infomation
+                let cart = await authApis(token).get(endpoints.cart_total_quantity);
+                cartDispatch({ type: 'user_logged_in', payload: cart.data['total_quantity'] })
+
+                const { nestedScreen, previousRoute, prevRouteParams } = route.params || {}
+                //console.log("actionn", action)
+                if (previousRoute) {
+                    if (nestedScreen) {
+                        nav.navigate(nestedScreen, { screen: previousRoute, params: { ...prevRouteParams } })
+                    } else {
+                        nav.navigate(previousRoute, { ...prevRouteParams })
+                    }
+                }
+                else
+                    nav.navigate('home')
+
             } catch (ex) {
                 console.error(ex);
             } finally {
@@ -116,26 +144,6 @@ const Login = () => {
                     <Text style={styles.buttonText}>Đăng nhập</Text>
                 )}
             </Button>
-
-            {/* Register with social account */}
-            {/* <View style={styles.orContainer}>
-                <View style={styles.line} />
-                <Text style={styles.orText}>Hoặc</Text>
-                <View style={styles.line} />
-            </View>
-
-            <View style={{ marginTop: 10 }}>
-                <TouchableOpacity style={styles.socialButton} onPress={() => promptAsync({ useProxy: true, showInRecents: true })}>
-                    <Image source={require('../../assets/google.png')} style={[styles.socialIcon]} />
-                    <Text style={[styles.socialButtonText]}>Đăng ký với Google</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.socialButton} onPress={() => console.log('Đăng ký với Facebook')}>
-                    <Image source={require('../../assets/facebook.png')} style={[styles.socialIcon]}></Image>
-                    <Text style={styles.socialButtonText}>Đăng ký với Facebook</Text>
-                </TouchableOpacity>
-            </View> */}
-
         </ScrollView>
     )
 }

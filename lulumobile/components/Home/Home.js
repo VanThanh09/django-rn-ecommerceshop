@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 import Apis, { endpoints } from "../../configs/Apis";
 import ProductCard from "../ui/homePage/ProductCard";
 import HeaderHome from "../ui/homePage/HeaderHome";
+import { useNavigation } from "@react-navigation/native";
 
 function Home() {
     const [products, setProducts] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const nav = useNavigation()
 
     const loadProducts = async () => {
         let res = await Apis.get(endpoints['products']);
@@ -24,7 +26,7 @@ function Home() {
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={{ paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0 }} >
-                <HeaderHome value={searchQuery} onChangeText={setSearchQuery} />
+                <HeaderHome value={searchQuery} onChangeText={setSearchQuery} showBackButton={false}/>
                 <View style={[styles.container]}>
                     <FlatList
                         contentContainerStyle={{ paddingBottom: 70 }}
@@ -33,15 +35,14 @@ function Home() {
                         numColumns={2}
                         showsVerticalScrollIndicator={false}
                         renderItem={({ item }) => (
-                            <TouchableOpacity style={{ width: '50%', padding: 5 }}>
-                                <ProductCard product={item} />
+                            <TouchableOpacity style={{ width: '50%', padding: 5 }} onPress = {() => nav.navigate('productDetail', {productId:item.id, productLogo:item.logo})}>
+                                <ProductCard product={item}/>
                             </TouchableOpacity>
                         )}
                     />
                 </View>
             </View >
         </TouchableWithoutFeedback>
-
     );
 
 }

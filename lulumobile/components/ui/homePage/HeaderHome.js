@@ -1,39 +1,64 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { StyleSheet, Text, View, SafeAreaView, Touchable } from "react-native"
 import MyStyles from "../../../styles/MyStyles"
-import { Button, Icon, IconButton, Searchbar } from "react-native-paper"
-import { useContext, useState } from "react"
-import { MyUserContext } from "../../../configs/MyContext"
+import { IconButton, Searchbar } from "react-native-paper"
+import { useContext } from "react"
+import { MyUserContext, CartContext } from "../../../configs/MyContext"
+import { useNavigation } from "@react-navigation/native"
 
-const HeaderHome = ({ value, onChangeText }) => {
+const HeaderHome = ({ value, onChangeText, showBackButton = false, showHomeButton = false }) => {
+    // State store the current quantity
+    nav = useNavigation()
+    user = useContext(MyUserContext)
+    const { cart } = useContext(CartContext)
+
+
     return (
-        <View style={MyStyles.bgPrimaryColor}>
-            <View style={styles.containerRow}>
-                <View style={[styles.left]}>
-                    <Searchbar
-                        placeholder="Search"
-                        style={styles.searchbar}
-                        inputStyle={styles.input}
-                        iconColor="#888"
-                        onChangeText={onChangeText}
-                        value={value}
-                    />
-                </View>
-                <View style={styles.right}>
-                    <IconButton
-                        icon="cart-outline"
-                        size={25}
-                        onPress={() => console.log('Pressed')}
-                        iconColor="#fff"
-                    />
-                    <IconButton
-                        icon="chat-processing-outline"
-                        size={25}
-                        onPress={() => console.log('Pressed')}
-                        iconColor="#fff"
-                    />
+        <SafeAreaView>
+            <View style={MyStyles.bgPrimaryColor}>
+                <View style={styles.containerRow}>
+                    <View style={[styles.left]}>
+                        {
+                            showBackButton ? (
+                                <View style={{ marginLeft: -10, width: '10%', marginRight: 8 }}>
+                                    <IconButton icon="chevron-left" size={25} iconColor="#fff" onPress={() => nav.goBack()} />
+                                </View>) : <></>
+                        }
+                        <Searchbar
+                            placeholder="Search"
+                            style={styles.searchbar}
+                            inputStyle={styles.input}
+                            iconColor="#888"
+                            onChangeText={onChangeText}
+                            value={value}
+                        />
+                    </View>
+                    <View style={styles.right}>
+                        <View style={styles.cartContainer}>
+                            <IconButton
+                                icon="cart-outline"
+                                size={25}
+                                iconColor="#fff"
+                            />
+                            {cart.total_quantity > 0 && (
+                                <View style={styles.badge}>
+                                    <Text style={styles.badgeText}>{cart.total_quantity}</Text>
+                                </View>
+                            )}
+                        </View>
+                        {
+                            showHomeButton ? (<View>
+                                <IconButton icon="home-outline" size={25} onPress={() => nav.navigate("index")} iconColor="#fff"/>
+                            </View>) : <View><IconButton
+                                icon="chat-processing-outline"
+                                size={25}
+                                onPress={() => console.log('Pressed')}
+                                iconColor="#fff"
+                            /></View>
+                        }
+                    </View>
                 </View>
             </View>
-        </View>
+        </SafeAreaView>
     )
 }
 
@@ -75,5 +100,29 @@ const styles = StyleSheet.create({
         fontSize: 14,
         marginTop: -8,
     },
+    cartContainer: {
+        width: 50,
+        height: 50,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    badge: {
+        position: "absolute",
+        right: 3,
+        top: 3.75,
+        backgroundColor: "#fff",
+        borderRadius: 10,
+        width: 20,
+        height: 20,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    badgeText: {
+        color: "#ee4d2d",
+        fontSize: 11,
+        fontWeight: "bold",
+    },
+    backButton: {
 
+    }
 })

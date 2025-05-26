@@ -1,0 +1,8 @@
+- Create comment request theo Form data , header type: multipart-data
+key - vallue
+{
+    product_variant: id,
+    content: str,
+    rating: int,
+    image_list: []
+}
