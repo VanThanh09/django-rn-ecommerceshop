@@ -1,14 +1,15 @@
+import base64
 import json
-
 from rest_framework import viewsets, generics, status, parsers, permissions
 from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 import cloudinary.api
-from django.db.models import Min
-
+from django.db.models import Min, Avg, Sum
 from eshopapis.models import Product, Store, User, VerificationSeller, ProductVariant, Attribute, AttributeValue, Order, \
-    OrderDetail, CartDetail, Cart, Category
+    OrderDetail, CartDetail, Cart, Category, CommentUser, StoreRating, CommentImage, CommentSeller, Payment
 from eshopapis import serializers, perms, paginators
+from eshopapis.utils import callApiMoMo
 
 
 # Hàm để xóa ảnh từ Cloudinary
@@ -32,6 +33,10 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     @action(methods=['get'], url_path='current_user', detail=False, permission_classes=[permissions.IsAuthenticated])
     def get_current_user(self, request):
         return Response(serializers.UserSerializer(request.user).data)
+
+    def perform_create(self, serializer):
+        user = serializer.save()
+        Cart.objects.create(user=user, total_quantity=0)
 
     @action(methods=['get'], url_path='info_user', detail=True)
     def get_info_user(self, request, pk=None):
@@ -93,6 +98,57 @@ class ProductViewSet(viewsets.ViewSet, generics.ListAPIView):
 class ProductDetailViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
     queryset = Product.objects.filter(active=True)
     serializer_class = serializers.ProductDetailSerializer
+
+    """
+        Lấy các 5 comment moi nhat trong 1 sản phẩm, trung binh so sao
+    """
+
+    @action(methods=['GET'], detail=True, url_path='top5comments')
+    def getTop5CommentRecent(self, request, pk):
+        list_product_variant = self.get_object().productvariant_set.all()
+        list_comment = CommentUser.objects.none()
+
+        for p in list_product_variant:
+            list_comment = list_comment.union(p.comments.all())
+
+        # Trung binh so sao
+        average_rating = 0
+        hasRating = False
+        total_rating = len(list(list_comment))
+        productHasRating = CommentUser.objects.filter(product_variant__product__id=self.get_object().id)
+        if productHasRating.exists():
+            average_rating = productHasRating.aggregate(Avg('rating'))['rating__avg']
+            hasRating = True
+            list_comment = list_comment.order_by('-created_date')[:5]
+
+        data = {'total_rating': total_rating, 'average_rating': round(average_rating, 1), 'hasRating': hasRating,
+                'comments': serializers.CommentUserViewSerializer(list_comment, many=True).data}
+        return Response(data=data, status=status.HTTP_200_OK)
+
+    @action(methods=['GET'], detail=True, url_path='comments')
+    def getAllComment(self, request, pk):
+        list_product_variant = self.get_object().productvariant_set.all()
+        list_comment = CommentUser.objects.none()
+
+        for p in list_product_variant:
+            list_comment = list_comment.union(p.comments.order_by('-created_date'))
+
+        list_comment = list_comment.order_by('-created_date')
+
+        return Response(data=serializers.CommentUserViewSerializer(list_comment, many=True).data, status=status.HTTP_200_OK)
+
+    @action(methods=['GET'], detail=True, url_path='sold')
+    def getCountProductSold(self, request, pk):
+        list_product_variant = self.get_object().productvariant_set.all()
+
+        sold_items = 0
+        for p in list_product_variant:
+            count = OrderDetail.objects.filter(order_status='SU', product_variant=p).aggregate(count=Sum('quantity'))[
+                'count']
+            if count:
+                sold_items += count
+
+        return Response({'sold_items': sold_items}, status=status.HTTP_200_OK)
 
 
 # Add new product and variants of this
@@ -181,13 +237,6 @@ class StoreDetailViewSet(viewsets.ViewSet, generics.ListAPIView):
     pagination_class = paginators.ProductPage
     permission_classes = [perms.IsSeller]
 
-    def get_queryset(self):
-        queryset = self.queryset
-        store = self.request.user.store_set.first()
-        if store:
-            queryset = queryset.filter(id=store.id)
-        return queryset
-
     # Return all product of a store
     @action(methods=['get'], detail=False, url_path='products')
     def get_products(self, request, pk=None):
@@ -204,6 +253,34 @@ class StoreDetailViewSet(viewsets.ViewSet, generics.ListAPIView):
             return self.get_paginated_response(serializer.data)
         else:
             return Response(serializers.ProductSerializer(products, many=True).data, status=status.HTTP_200_OK)
+
+    @action(methods=['get'], detail=True, url_path='rating')
+    def get_avg_store_rating(self, request, pk):
+        store = self.get_object()
+        average_rating = 0
+        storeHasRating = StoreRating.objects.filter(store=store)
+        hasRating = False
+        if storeHasRating.exists():
+            hasRating = True
+            average_rating = storeHasRating.aggregate(Avg('rating'))['rating__avg']
+
+        return Response({'average_rating_store': round(average_rating, 1), 'hasRating': hasRating},
+                        status=status.HTTP_200_OK)
+
+    def get_total_product(self, pk):
+        store = Store.objects.get(pk=pk)
+        products = store.product_set.filter(active=True)
+
+        return products.count()
+
+    @action(methods=['GET'], detail=True, url_path='store_info')
+    def get_store_info(self, request, pk):
+        data = {}
+        data['store_info'] = serializers.StoreProductSerializer(self.get_object()).data
+        data['rating'] = self.get_avg_store_rating(request, pk).data
+        data['total_product'] = self.get_total_product(pk)
+
+        return Response(data=data, status=status.HTTP_200_OK)
 
 
 # POST api for customer want to become seller
@@ -282,114 +359,9 @@ class ActionVerificationViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
             return Response({"detail": "Please give the reason for rejection"}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class OrderViewSet(viewsets.ViewSet,generics.CreateAPIView, generics.RetrieveUpdateDestroyAPIView):
-    queryset = Order.objects.all()
-    serializer_class = serializers.OrderCreateSerializer
-
-    def get_serializer_class(self):
-        if self.action == 'retrieve':
-            return serializers.OrderPartialSerializer
-        return super().get_serializer_class()
-
-    def get_permissions(self): # Initilize instance of permission class
-        if self.action == 'create':
-            self.permission_classes = [perms.IsCustomerOrSeller]
-        elif self.action in ['update', 'partial_update','retrieve']:
-            self.permission_classes = [perms.IsCustomerOrSeller, perms.OrderUpdatePermission]
-        elif self.action == 'destroy':
-            self.permission_classes = [perms.IsCustomerOrSeller,perms.OwnerOrderPermission]
-        return super().get_permissions()
-
-    def perform_create(self, serializer):
-        return serializer.save(customer=self.request.user)
-
-    """
-    Save Order to the database
-    Create new Order Detail and associate it with Order
-    """
-    def create(self, request, *args, **kwargs):
-       # A customer can not buy a product from its store
-       store = Store.objects.get(pk = request.data.get("store"))
-       if store.owner == request.user:
-           return Response(data={"error_msg" : "Can not by a product from your own store"},status=status.HTTP_400_BAD_REQUEST)
-       else:
-           products = request.data.pop('products')
-           serializer = self.get_serializer(data=request.data)
-           serializer.is_valid(raise_exception=True)
-           new_order = self.perform_create(serializer) # Get new order just created
-           headers = self.get_success_headers(serializer.data)
-
-           #   Create order detail
-           for p in products:
-               OrderDetail.objects.create(order=new_order,product_variant_id=p.get('product_variant_id'), quantity=p.get('quantity'))
-
-
-           return Response(serializers.OrderFullSerializer(new_order).data, status=status.HTTP_201_CREATED)
-
-    def partial_update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = serializers.OrderUpdateSerializer(instance=instance,data=request.data,partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save() #Choose whether update or create order
-        serializerResponse = serializers.OrderPartialSerializer(instance)
-        return Response(serializerResponse.data, status=status.HTTP_202_ACCEPTED)
-
-
-# UserOrder Function based view
-"""
-    Get list of order that user has ordered with the status as query param
-    Ex: user/orders/
-        user/orders/?status="PE"
-"""
-
-
-@api_view(['GET'])
-@permission_classes([perms.IsCustomerOrSeller])
-def userpurchase_list(request):
-    if request.query_params.get('status') == None:
-        orders = Order.objects.filter(customer=request.user)
-    else:
-        orders = Order.objects.filter(customer=request.user,
-                                      order_status=request.query_params.get('status'))
-    serializer = serializers.OrderFullSerializer(orders, many=True)
-
-    if not orders:
-        return Response({"msg": "Chưa có đơn hàng"}, status=status.HTTP_404_NOT_FOUND)
-
-    return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-# StoreOrder Function based view
-"""
-    Get list of order that a store have with the status as query param
-    Ex: store/order/
-        store/order/?status="PE"
-"""
-
-
-@api_view(['GET'])
-@permission_classes([perms.IsSeller])
-def storeorder_list(request):
-    if request.query_params.get('status') == None:
-        orders = Order.objects.filter(
-            store=request.user.store.values_list('id', flat=True)[0])  # Getting id of request.user's store
-    else:
-        orders = Order.objects.filter(store=request.user.store.values_list('id', flat=True)[0],
-                                      order_status=request.query_params.get('status'))
-    serializer = serializers.StoreOrderSerializer(orders, many=True)
-
-    if not orders:
-        return Response({"msg": "Chưa có đơn hàng"}, status=status.HTTP_400_BAD_REQUEST)
-
-    return Response(serializer.data, status=status.HTTP_200_OK)
-
-
 """
     Get all product in the cart in format of basic information
-    Use case: When user hover the cart item
 """
-
-
 def change_cart_detail_active(cart):
     deactive_products = cart.products.filter(active=False)
     for p in deactive_products:
@@ -406,15 +378,15 @@ def get_products_in_cart(request):
         return Response(data={'msg': 'No product in cart'}, status=status.HTTP_200_OK)
     # Update if product_variant still active or not
     change_cart_detail_active(cart=cart)
-    serializer = serializers.CartSerializer(cart)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    # serializer = serializers.CartSerializer(cart)
+    return Response(data={'total_quantity': cart.total_quantity}, status=status.HTTP_200_OK)
 
 
 """
+    /cart
     Get list product detail in cart
     Use case: When user want to see what they have in cart
 """
-
 
 @api_view(['GET'])
 @permission_classes([perms.IsCustomerOrSeller])
@@ -480,41 +452,6 @@ def handle_tick_products(request):
     return Response(data={'total_price': total_price,
                           'total_products': total_products
                           }, status=status.HTTP_200_OK)
-
-
-# Payment process assume user sending selected cart item
-# URL /checkout/
-"""
-    Request body {
-        "list_product_variant": [1,2,3....],
-        "list_cart_detail": [1,2,3]
-    }
-
-    Response
-    {
-        "user" : {
-        "fullname" str,
-        "address": { }
-        },
-        cart_items: [
-            {
-             "store" : {
-                 "id":int, 
-                 "name"
-             },
-             product_variants: [
-             {
-
-             }
-             ],
-             'total_quantity': int,
-             'total_price': int
-            }
-        ],
-        payment_method: ['Momo', 'Thanh toan khi nhan hang']
-        total_price: int
-    }
-"""
 
 
 def store_distinct(data):
@@ -583,3 +520,289 @@ class CartDetailViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.Updat
 
 # Done cart/ , cart-basic-info, checkout
 # Create order, orderDetail for each shop, after that remove all the from cart
+
+#################################### Product comment API ###############################################
+
+class CommentUserViewSet(viewsets.ViewSet, generics.CreateAPIView,generics.UpdateAPIView,generics.DestroyAPIView):
+    queryset = CommentUser.objects.all()
+    serializer_class = serializers.CommentUserViewSerializer
+    permission_classes = [perms.IsCustomerOrSeller]
+
+    # def get_serializer_class(self):
+    #     if action == 'create':
+    #         return serializers.CommentUserCreateSerializer
+
+    def get_parser_classes(self):
+        if self.action in ['create', 'partial_update']:
+            return [MultiPartParser, FormParser]
+        return super().get_parser_classes()
+
+    def get_permissions(self):
+        if self.action == 'list':
+            return []
+        if self.action in ['partial_update','destroy']:
+            return [perms.OwnerPermission()]
+        if self.action == 'create_rep_cmt':
+            return [perms.CommentSellerCreatePermission()]
+        return super().get_permissions()
+
+    def perform_create(self, serializer):
+        return serializer.save(user=self.request.user)
+
+    """
+    Create comment res: {
+        content, rating, product_variant, image_list:[]
+    }
+    form data
+    """
+    def create(self, request, *args, **kwargs):
+        # A user can comment about the product of it's store
+        product_variant = ProductVariant.objects.get(pk=request.data.get('product_variant'))
+        content = request.data.get('content')
+        rating = request.data.get('rating')
+
+        if (request.user == product_variant.product.store.owner):
+            return Response(data={"msg": "Can not comment on your own product"}, status=status.HTTP_200_OK)
+
+        image_list = request.Files.get('image_list')
+
+        # Luu comment
+        newComment = CommentUser.objects.create(product_variant=product_variant, content=content, rating=rating, user=request.user)
+
+        # Luu file hinh anh cho comment
+        for image in image_list:
+            CommentImage.objects.create(image=image, comment=newComment)
+
+        serializer = serializers.CommentUserViewSerializer(newComment)
+        return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = serializers.CommentUserSerializer(instance=instance,data=request.data,partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save() #Choose whether update or create comment
+        serializerResponse = serializers.CommentUserViewSerializer(instance)
+        return Response(serializerResponse.data, status=status.HTTP_202_ACCEPTED)
+
+    @action(methods=['POST'],detail=True,url_path='create_rep_cmt')
+    def create_rep_cmt(self,request,pk=None):
+        cmt = self.get_object()
+        rep_cmt = CommentSeller.objects.create(rep_cmt=cmt, content=request.data.get('content'),seller=request.user)
+        return Response(serializers.CommentSellerSerializer(rep_cmt).data, status=status.HTTP_201_CREATED)
+
+class CommentSellerViewSet(viewsets.ViewSet, generics.UpdateAPIView,generics.DestroyAPIView):
+    queryset = CommentSeller.objects.all()
+    serializer_class = serializers.CommentSellerSerializer
+    permission_classes = [perms.CommentSellerOwnerPermission]
+
+
+"""
+    update like của những comment khi nguwoif dùng click vào nút like comment
+    request : []
+"""
+@api_view(['POST'])
+@permission_classes([perms.IsCustomerOrSeller])
+def updateLikeComments(request):
+    comments = request.data.get('comments')
+    for id in comments:
+        c = CommentUser.objects.get(pk=id)
+        c.like += 1
+        c.save()
+
+    return Response(status=status.HTTP_200_OK)
+
+
+######################################################## ORDER #####################################################
+
+def createOrder(customer,total_price,payment_method,paid):
+    return Order.objects.create(customer=customer,payment_method=payment_method
+                                       ,total_price=total_price,paid=paid)
+def createOrderDetail(order, products):
+    for p in products:
+        store = ProductVariant.objects.get(pk=p.get('product_variant_id')).product.store
+        OrderDetail.objects.create(order=order,product_variant_id=p.get('product_variant_id'),quantity=p.get('quantity'),store=store)
+
+def removeCartDetail(cart_detail_list):
+    for id in cart_detail_list:
+        c = CartDetail.objects.get(pk=id)
+        c.cart.total_quantity -= 1
+        c.cart.save()
+        c.delete()
+
+class OrderDetailUpdateViewSet(viewsets.ViewSet,generics.UpdateAPIView):
+    queryset = OrderDetail.objects.all()
+    serializer_class = serializers.OrderDetailUpdateSerializer
+    permission_classes = [perms.OrderDetailUpdatePermission]
+
+
+class OrderViewSet(viewsets.ViewSet,generics.CreateAPIView, generics.RetrieveUpdateDestroyAPIView):
+    queryset = Order.objects.all()
+    serializer_class = serializers.OrderSerializer
+
+    # def get_serializer_class(self):
+    #     if self.action == 'retrieve':
+    #         return serializers.OrderSerializer
+    #     return serializers.OrderSerializer
+
+    def get_permissions(self): # Initilize instance of permission class
+        if self.action == 'create':
+            self.permission_classes = [perms.IsCustomerOrSeller]
+        elif self.action in ['update', 'partial_update','retrieve']:
+            self.permission_classes = [perms.IsCustomerOrSeller, perms.OrderUpdatePermission]
+        elif self.action == 'destroy':
+            self.permission_classes = [perms.IsCustomerOrSeller,perms.OwnerOrderPermission]
+        return super().get_permissions()
+
+    """
+    Save Order to the database
+    Create new Order Detail and associate it with Order
+    """
+    def create(self, request, *args, **kwargs):
+       # A customer can not buy a product from its store
+       print(request.data)
+
+       stores = request.data.get('stores')
+       for id in stores:
+           store = Store.objects.get(pk=id)
+           if store.owner == request.user:
+               return Response(data={"result" : False, "msg": "Không thể mua hàng từ của hàng của mình"},status=status.HTTP_400_BAD_REQUEST)
+
+       payment_method = request.data.get('payment_method')
+       if (payment_method.get('method') == 'OF'):
+           products = request.data.pop('products')
+           order_total_price = request.data.get('total_price')
+           paid = request.data.get('paid')
+           cart_detail_list = request.data.get('cart_detail_list')
+
+           newOrder = createOrder(customer=request.user,total_price=order_total_price,payment_method=payment_method.get('method'),paid=paid)
+           createOrderDetail(products=products,order=newOrder)
+           removeCartDetail(cart_detail_list)
+
+           return Response({'result':True, 'msg': 'Tạo đơn haàng thành công'}, status=status.HTTP_201_CREATED)
+
+       if (payment_method.get('method') == 'ON'):
+           if(payment_method.get('portal') == 'MOMO'):
+               # Call api momo
+               data = request.data.copy()
+               data['user_id'] = request.user.id
+               # Momo response kết quả xác nhận xử lý yeeu cầu tạo thanh toán
+               MomoResponse = callApiMoMo(data)
+
+               if (MomoResponse.get('resultCode') == 0):
+                   return Response(data={'result_code': 0,'deeplink': MomoResponse.get('deeplink')
+                       , 'msg':"Gửi yêu cầu thanh toán thành công"}, status=status.HTTP_200_OK)
+
+               return Response(data={'result_code': MomoResponse.get('resultCode'), 'msg': "Có lỗi xảy ra"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = serializers.OrderUpdateSerializer(instance=instance,data=request.data,partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save() #Choose whether update or create order
+
+        return Response({"result":True, "msg":"Đã update kết quả thanh toán"}, status=status.HTTP_202_ACCEPTED)
+
+
+
+# API handle momo request
+
+@api_view(['POST'])
+def callbackMoMo(request):
+    print('==> Momo request')
+    print(request.data)
+
+    print('Extra data expected same the with order')
+    print(request.data.get('extraData'))
+
+    # Dữ liệu lấy từ momo
+    resultCode = request.data.get('resultCode')
+    orderId = request.data.get('orderId')
+    requestId = request.data.get('requestId')
+    amount = request.data.get('amount')
+    data = request.data.get('extraData','')
+    try:
+        data = json.loads(base64.b64decode(data).decode())
+    except Exception:
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    products = data.pop('products')
+    payment_method = data.get('payment_method')
+    order_total_price = data.get('total_price')
+    cart_detail_list = data.get('cart_detail_list')
+    user_id = data.get('user_id')
+    # Khach hang thanh toan thanh cong
+    if (resultCode == 0):
+        paid = True
+        # Tạo order detail, rm cart detail ...
+        newOrder = Order.objects.create(customer_id=user_id, total_price=order_total_price,
+                                        payment_method=payment_method.get('method'), paid=paid)
+        createOrderDetail(products=products, order=newOrder)
+        removeCartDetail(cart_detail_list)
+        # Tao payment
+        Payment.objects.create(order=newOrder, order_payment_id=orderId, request_id=requestId,
+                               portal_payment=payment_method.get('portal'), amount=float(amount),payment_status=True)
+    # Thanh toán không thành công
+    else:
+        Payment.objects.create(order_payment_id=orderId,request_id=requestId,portal_payment=payment_method.get('portal'),
+                               amount=amount, payment_status=False)
+
+    return Response(status=status.HTTP_200_OK)
+
+
+# UserOrder Function based view
+"""
+    Get list of order that user has ordered with the status as query param
+    Ex: user/orders/
+        user/orders/?status=PE
+"""
+
+@api_view(['GET'])
+@permission_classes([perms.IsCustomerOrSeller])
+def userpurchase_list(request):
+    if request.query_params.get('status') == None:
+        orders = OrderDetail.objects.filter(order__customer=request.user)
+    else:
+        orders = OrderDetail.objects.filter(order__customer=request.user,
+                                      order_status=request.query_params.get('status'))
+    serializer = serializers.OrderDetailSerializer(orders, many=True)
+
+    if not orders:
+        return Response({"msg": "Chưa có đơn hàng"}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# StoreOrder Function based view
+"""
+    Get list of order that a store have with the status as query param
+    Ex: store/order/
+        store/order/?status=PE
+"""
+
+@api_view(['GET'])
+@permission_classes([perms.IsSeller])
+def storeorder_list(request):
+    if request.query_params.get('status') == None:
+        orders = OrderDetail.objects.filter(
+            store=request.user.store_set.values_list('id', flat=True)[0])  # Getting id of request.user's store
+    else:
+        orders = OrderDetail.objects.filter(store=request.user.store_set.values_list('id', flat=True)[0],
+                                      order_status=request.query_params.get('status'))
+    serializer = serializers.OrderStoreSerializer(orders, many=True)
+
+    if not orders:
+        return Response({"msg": "Chưa có đơn hàng"}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+ ############################### Store rating ##################################
+@api_view(['POST'])
+@permission_classes([perms.IsCustomerOrSeller])
+def create_store_rating(request):
+    store_rating_serializer = serializers.StoreRatingSerializer(data=request.data)
+    store_rating_serializer.is_valid(raise_exception=True)
+    new_store_rating = store_rating_serializer.save(user=request.user)
+    return Response(serializers.StoreRatingSerializer(new_store_rating).data , status=status.HTTP_201_CREATED)

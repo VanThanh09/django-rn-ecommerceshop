@@ -1,6 +1,5 @@
 import json
 from datetime import timedelta
-from time import localtime
 
 from django.contrib import admin
 from django.urls import reverse
@@ -141,10 +140,19 @@ class StoreAdmin(admin.ModelAdmin):
     product_view.short_description = "Products"
 
 
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'count_product']
+
+    def count_product(self, obj):
+        return f"{obj.products.count()} SẢN PHẨM"
+
+    count_product.short_description = "PRODUCTS"
+
+
 admin_site.register(User)
 admin_site.register(Store, StoreAdmin)
 admin_site.register(VerificationSeller)
 admin_site.register(Product)
 admin_site.register(ProductVariant)
-admin_site.register(Category)
+admin_site.register(Category, CategoryAdmin)
 admin_site.register(Order)

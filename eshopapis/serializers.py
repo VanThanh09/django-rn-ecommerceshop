@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from eshopapis.models import Product, Store, User, ProductVariant, AttributeValue, VerificationSeller, Category, \
-    Attribute, CartDetail, Cart, Order, OrderDetail
+    CartDetail, Cart, Order, OrderDetail, CommentImage, CommentUser, CommentSeller, StoreRating
 
 
 # StoreSerializer trả ra thông tin cửa hàng
@@ -212,10 +212,46 @@ class ProductVariantWithProductNameSerializer(serializers.ModelSerializer):
 
 # Serializer of OrderDetail using in OrderFullSerializer
 class OrderDetailSerializer(serializers.ModelSerializer):
-    product_variant = ProductVariantWithProductNameSerializer(read_only=True)
+    product = serializers.SerializerMethodField()
+    store = serializers.SerializerMethodField()
+    product_variant = serializers.SerializerMethodField()
+
+    def get_product(self, obj):
+        product = obj.product_variant.product
+        return {
+            "id": product.id,
+            "name": product.name,
+            "logo": product.logo.url
+        }
+
+    def get_store(self, obj):
+        return {
+            "id": obj.store.id,
+            "name": obj.store.name,
+            "logo": obj.store.logo.url
+        }
+
+    def get_product_variant(self, obj):
+        attributes = AttributeValueSerializer(obj.product_variant.attributes.all(), many=True).data
+
+        return {
+            "id": obj.product_variant.id,
+            "logo": obj.product_variant.logo.url,
+            "price": obj.product_variant.price,
+            "attributes": attributes
+        }
+
     class Meta:
         model = OrderDetail
-        fields = ['product_variant','quantity']
+        fields = ['product','store','product_variant','order_status','quantity']
+
+
+class OrderDetailUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderDetail
+        fields = ['id','order_status']
+        read_only_fields = ('id',)
+
 
 # Serializer for creating order
 class OrderCreateSerializer(serializers.ModelSerializer):
@@ -227,13 +263,15 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 class OrderUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
-        fields = ['order_status']
+        fields = ['paid']
+
 
 # Serializer only serialize every things but basic form
-class OrderPartialSerializer(serializers.ModelSerializer):
+class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = "__all__"
+
 
 # Serializer for full Response Order
 class OrderFullSerializer(serializers.ModelSerializer):
@@ -245,19 +283,26 @@ class OrderFullSerializer(serializers.ModelSerializer):
         fields = ['id','customer','products','store','total_price','order_status','created_date']
 
 
-# Serializer Response for store/orders
-class CustomerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id','username']
+class OrderStoreSerializer(OrderDetailSerializer):
+    def get_customer(self,obj):
+        customer = obj.order.customer
+        return {
+            "id": customer.id,
+            "username": customer.username,
+            "avatar": customer.avatar.url
+        }
+    # Dynamically define fields for the model serializer
+    def get_fields(self):
+        fields = super().get_fields()
 
-class StoreOrderSerializer(serializers.ModelSerializer):
-    products = OrderDetailSerializer(read_only=True,many=True, source="orderdetail_set")
-    order_id = serializers.IntegerField(source='id')
-    customer = CustomerSerializer(read_only=True)
-    class Meta:
-        model = Order
-        fields = ['order_id','customer','products','total_price','order_status','created_date']
+        fields['customer'] = serializers.SerializerMethodField()
+        fields['payment_method'] = serializers.CharField(source='order.payment_method')
+
+        # Remove the 'store' field
+        fields.pop('store', None)
+
+        return fields
+
 
 # Cart Serializer
 # Support serializer for serializing cart
@@ -266,6 +311,7 @@ class CartProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = ['id', 'name']
         read_only_fields = ('id','name',)
+
 
 class CartBasicProductVariantSerializer(serializers.ModelSerializer):
     product = CartProductSerializer(read_only=True)
@@ -278,6 +324,7 @@ class CartBasicProductVariantSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data['logo'] = instance.logo.url
         return data
+
 
 # I override this to remove the info about the owner of the store
 class CartStoreSerializer(StoreSerializer):
@@ -314,7 +361,7 @@ class CartDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartDetail
         fields = ['id','product_variant', 'quantity','active','cart','cart_total_quantity']
-        read_only_fields = ('id','cart',)
+        read_only_fields = ('id','cart', 'active')
 
     # Orverride create method that check if product_variant is already exist then just update
     def create(self, validated_data):
@@ -334,3 +381,108 @@ class CartDetailSerializer(serializers.ModelSerializer):
         cart.save()
 
         return cartDetail
+
+
+class CommentImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommentImage
+        fields = '__all__'
+        read_only_fields = ('id')
+
+
+class CommentImageReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommentImage
+        fields = ['id','image']
+        read_only_fields = ('id', 'image')
+
+    def to_representation(self, instance):
+        if instance is not None:
+            data = super().to_representation(instance)
+            data['image'] = instance.image.url
+            return data
+
+
+class UserCommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['username', 'avatar']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        # Safely handle avatar URL
+        if instance.avatar:  # Checks both None and empty file
+            try:
+                data['avatar'] = instance.avatar.url
+            except ValueError:
+                # FileField/ImageField exists but no file is attached
+                data['avatar'] = None
+        else:
+            data['avatar'] = None
+
+        return data
+
+
+class ProductVariantCommentSerializer(serializers.ModelSerializer):
+    attributes = AttributeValueSerializer(many=True)
+    class Meta:
+        model = ProductVariant
+        fields = ['attributes']
+
+
+class CommentUserViewSerializer(serializers.ModelSerializer):
+    user = UserCommentSerializer(read_only=True)
+    product_variant = ProductVariantCommentSerializer(read_only=True)
+    image_list = serializers.SerializerMethodField()
+    rep_cmt = serializers.SerializerMethodField()
+
+    def get_image_list(self, obj):
+        image_list = obj.image_list.all()
+        if image_list.exists():
+            return CommentImageReadSerializer(image_list,many=True, context=self.context).data
+        return []
+
+    def get_rep_cmt(self,obj):
+        # Kiểm tra sự tồn tại của `rep_cmt`
+        if hasattr(obj, 'rep_cmt') and obj.rep_cmt:
+            return obj.rep_cmt.content
+        return ''
+    class Meta:
+        model = CommentUser
+        fields = ['user','id','product_variant','content','like','rating','image_list','created_date','rep_cmt']
+
+
+class CommentUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommentUser
+        fields = ['id','content','rating','like']
+        read_only_field = ('id')
+
+
+class CommentSellerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommentSeller
+        fields = '__all__'
+        read_only_fields = ('id','rep_cmt','seller',)
+
+############################ Rating Store ###################
+
+class StoreRatingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StoreRating
+        fields = '__all__'
+        read_only_fields = ('id','user',)
+
+########################## Store in product detail Page ######
+
+class StoreProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Store
+        fields = ['id','name','logo','store_address']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['logo'] = instance.logo.url
+
+        return data

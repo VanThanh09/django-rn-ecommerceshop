@@ -14,6 +14,9 @@ router.register('categories', views.CategoryViewSet, basename='categories')
 
 router.register('orders',views.OrderViewSet,basename='order')
 router.register('cart-detail', views.CartDetailViewSet, basename='cart-detail')
+router.register('update_order_detail', views.OrderDetailUpdateViewSet, basename='update-order-detail-status')
+router.register('comments', views.CommentUserViewSet,basename='comments')
+router.register('seller_comments',views.CommentSellerViewSet,basename='seller_comments')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -21,7 +24,10 @@ urlpatterns = [
     # path('comments/', views.CommentCreateAPIView.as_view())
     path('user/orders/', views.userpurchase_list),
     path('portal/store/orders/',views.storeorder_list),
-    path('cart/basic-info/', views.get_products_in_cart),
+    path('cart/total_quantity/', views.get_products_in_cart),
     path('cart/',views.get_products_detail_in_cart),
-    path('checkout/',views.checkout)
+    path('checkout/',views.checkout),
+    path('update_like_comments/',views.updateLikeComments),
+    path('callbackMoMo/',views.callbackMoMo),
+    path('create_rating_store/', views.create_store_rating),
 ]
