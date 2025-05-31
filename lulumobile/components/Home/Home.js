@@ -35,7 +35,8 @@ function Home() {
                         numColumns={2}
                         showsVerticalScrollIndicator={false}
                         renderItem={({ item }) => (
-                            <TouchableOpacity style={{ width: '50%', padding: 5 }} onPress = {() => nav.navigate('productDetail', {productId:item.id, productLogo:item.logo})}>
+                            <TouchableOpacity style={{ width: '50%', padding: 5 }} onPress = {() => nav.navigate('productDetail', 
+                            {productId:item.id, productLogo:item.logo, prevScreen: {previousRoute: "index"}})}>
                                 <ProductCard product={item}/>
                             </TouchableOpacity>
                         )}

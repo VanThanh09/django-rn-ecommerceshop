@@ -68,7 +68,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductVariant
-        fields = ['id', 'logo', 'quantity', 'price', 'attributes']
+        fields = ['id', 'logo', 'quantity', 'price', 'active', 'attributes']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -153,9 +153,10 @@ class ProductCreateSerializer(serializers.ModelSerializer):
 class ProductVariantWithProductNameSerializer(serializers.ModelSerializer):
     attributes = AttributeValueSerializer(many=True)
     product_name = serializers.StringRelatedField(source="product.name")
+    stock_quantity = serializers.IntegerField(source="quantity")
     class Meta:
         model=ProductVariant
-        fields=['id', 'product_name' ,'logo',  'price', 'attributes']
+        fields=['id', 'product_name' ,'logo',  'price', 'attributes', 'stock_quantity']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -295,9 +296,15 @@ class CartProductVariantSerializer(serializers.ModelSerializer):
     def get_total_price(self,obj):
         return obj.product_variant.price * obj.quantity
 
+class CartDetailGetProductsForCart(serializers.ModelSerializer):
+    variant_id = serializers.IntegerField(source='product_variant.id', read_only=True)
+    class Meta:
+        model = CartDetail
+        fields = ['variant_id', 'quantity']
 
 class CartSerializer(serializers.ModelSerializer):
-    product_variants = CartBasicProductVariantSerializer(many=True,source='products',read_only=True)
+    product_variants = CartDetailGetProductsForCart(source="cartdetail_set", many=True, read_only=True)
+
     class Meta:
         model = Cart
         fields = ['id','product_variants','total_quantity']

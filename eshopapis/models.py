@@ -111,7 +111,11 @@ class ProductVariant(BaseModel):
     active = models.BooleanField(default=True)  # Khi sản phẩm hết số lượng,hoặc bị xóa ,active=False, không thể mua sản phẩm này dù con trong giỏ hàng
 
     def __str__(self):
-        return f"{self.product.name} - Tồn kho: {self.quantity} - Giá: {"{:,.0f}".format(self.price)} VND"
+        attributeValues = self.attributes.all()
+        allValues = ''
+        for a in attributeValues:
+            allValues += a.value
+        return f"{self.product.name} - {allValues} - Tồn kho: {self.quantity} - Giá: {"{:,.0f}".format(self.price)} VND"
 
 
 class Order(models.Model):
@@ -151,7 +155,6 @@ class Cart(models.Model):
     total_quantity = models.IntegerField(default=0)
     user=models.OneToOneField(User, on_delete=models.CASCADE)
     products = models.ManyToManyField(ProductVariant, through='CartDetail', related_name="carts")
-
 
 from django.core.validators import MinValueValidator, MaxValueValidator
 

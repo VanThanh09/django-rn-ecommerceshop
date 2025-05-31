@@ -3,10 +3,45 @@ import MyStyles from "../../../styles/MyStyles"
 import { Button, Icon, IconButton } from "react-native-paper"
 import { useContext } from "react"
 import { MyUserContext } from "../../../configs/MyContext"
+import { useNavigation } from "@react-navigation/native"
 
 const HearderProfile = ({ onLoginPress, onRegisterPress, onLogoutPress }) => {
     const user = useContext(MyUserContext);
+    const nav = useNavigation()
 
+    const handleOnpressCart = () => {
+        if (user === null) {
+            nav.navigate('login', {
+                prevScreen: {
+                    nestedScreen: "account", previousRoute: "index",
+                    prevRouteParams: undefined
+                },
+                // Màn hình muốn chuyển tới sau login
+                screenAfterLogin: {
+                    nestedScreen: "home",
+                    route: "cartPage",
+                    // Params use for cart page going back Profile
+                    params: {
+                        prevScreen: {
+                        nestedScreen: "account",
+                        previousRoute: "index",
+                    }
+                    }
+                }
+            })
+        }
+        else {
+            nav.navigate('home', {
+                screen: 'cartPage',
+                params: {
+                    prevScreen: {
+                        nestedScreen: "account",
+                        previousRoute: "index",
+                    }
+                }
+            })
+        }
+    }
     return (
         <View style={MyStyles.bgPrimaryColor}>
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
@@ -20,7 +55,7 @@ const HearderProfile = ({ onLoginPress, onRegisterPress, onLogoutPress }) => {
                     <IconButton
                         icon="cart-outline"
                         size={25}
-                        onPress={() => console.log('Pressed')}
+                        onPress={() => { handleOnpressCart() }}
                         iconColor="#fff"
                     />
                     <IconButton

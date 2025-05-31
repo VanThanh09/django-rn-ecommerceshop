@@ -1,7 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { Platform, StatusBar, StyleSheet, Text, View } from 'react-native';
-import Home from './components/home/Home';
+import Home from './components/home/home';
 import Register from './components/user/Register';
 import Login from './components/user/Login';
 import { useContext, useReducer, useLayoutEffect } from 'react';
@@ -15,6 +15,8 @@ import ProductDetail from './components/home/ProductDetail'
 import CartReducer from './reducers/CartReducer';
 // Get current name route focused
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import Cart from './components/cart/cart';
+import { HeaderCartLeft, HeaderCartTitile } from './components/cart/cart';
 
 const Stack = createNativeStackNavigator();
 const HomeStackNavigator = createNativeStackNavigator();
@@ -34,6 +36,8 @@ function HomeStack({ navigation, route }) {
     <HomeStackNavigator.Navigator>
       <HomeStackNavigator.Screen name="index" component={Home} options={{ headerShown: false }} />
       <HomeStackNavigator.Screen name="productDetail" component={ProductDetail} options={{ headerShown: false }} />
+      <HomeStackNavigator.Screen name="cartPage" component={Cart}
+      />
     </HomeStackNavigator.Navigator>
   )
 }
@@ -46,7 +50,7 @@ function MyTabs() {
       <Tab.Screen name="home"
         component={HomeStack}
         options={({ route }) => {
-          const tabHidden = ['productDetail'];
+          const tabHidden = ['productDetail', 'cartPage'];
           const routeName = getFocusedRouteNameFromRoute(route);
           return {
             tabBarIcon: () => <Icon size={30} source="home" />,
@@ -55,6 +59,16 @@ function MyTabs() {
               : styles.tabBarStyle
           };
         }}
+        listeners={({ navigation }) => ({
+          tabPress: e => {
+            // Ngăn mặc định
+            e.preventDefault();
+            // Reset lại stack navigator để luôn quay về "index"
+            navigation.navigate('home', {
+              screen: 'index',
+            });
+          },
+        })}
       />
       <Tab.Screen
         name="account"
@@ -82,7 +96,7 @@ function MyTabs() {
 
 const App = () => {
   const [user, dispatch] = useReducer(MyUserReducers, null) // return new state u.data
-  const [cart, cartDispatch] = useReducer(CartReducer, { total_quantity: 0 });
+  const [cart, cartDispatch] = useReducer(CartReducer, null);
 
   return (
     <MyUserContext.Provider value={user}>

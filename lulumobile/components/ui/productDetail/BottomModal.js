@@ -1,15 +1,20 @@
 import Modal from "react-native-modal"
-import { View, StyleSheet, TouchableWithoutFeedback} from "react-native"
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView} from "react-native"
 
 const BottomModal = ({ children, visible, handleOnbackDrop }) => {
     return (
-
         <Modal transparent animationType="slide" isVisible={visible}
             onBackdropPress={handleOnbackDrop}
-            style={styles.modalContainer}>
+            style={styles.modalContainer}
+            unmountOnClose={false}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1, justifyContent: 'flex-end' }}
+            >        
             <View style={styles.modalContent}>
-                {children}
+                    {children}
             </View>
+            </KeyboardAvoidingView>
         </Modal>
 
     )
@@ -27,5 +32,6 @@ const styles = StyleSheet.create({
         backgroundColor: "white",
         borderTopLeftRadius: 12,
         borderTopRightRadius: 12,
+        paddingBottom: 12
     }
 })

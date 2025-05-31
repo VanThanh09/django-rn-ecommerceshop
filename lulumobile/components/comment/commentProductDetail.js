@@ -128,12 +128,27 @@ const Comment = ({ comment, activeLike, onPressLike }) => {
     const nestedScreen = parentNav?.getState()?.routeNames[parentNav?.getState().index];
 
     const handlePendingLikeCmt = (id) => {
+        // navigation.navigate('account', {
+        //     screen: 'login', params: {
+        //         nestedScreen: nestedScreen, previousRoute: route.name,
+        //         prevRouteParams: route.params
+        //     }
+        // })
+        
         navigation.navigate('account', {
             screen: 'login', params: {
-                nestedScreen: nestedScreen, previousRoute: route.name,
-                prevRouteParams: route.params
+                prevScreen: {
+                    nestedScreen: nestedScreen, previousRoute: route.name,
+                    prevRouteParams: route.params
+                },
+                 screenAfterLogin: {
+                    nestedScreen: nestedScreen,
+                    route: route.name,
+                    params: route.params
+                }
             }
         })
+
         addPendingAction(ACTION_TYPES.LIKE_CMT, { commentId: id })
     }
 
@@ -310,4 +325,3 @@ const styles = StyleSheet.create({
         backgroundColor: '#D3D3D3'
     }
 })
-// Done comment -> Next: Mo Ta san pham'

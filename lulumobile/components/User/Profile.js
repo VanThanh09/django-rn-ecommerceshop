@@ -2,7 +2,7 @@ import { useContext, useState } from "react";
 import { Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { ActivityIndicator, Button, Icon } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
-import { MyDispatchContext, MyUserContext } from "../../configs/MyContext";
+import { MyDispatchContext, MyUserContext, CartContext } from "../../configs/MyContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MyStyles from "../../styles/MyStyles";
 import HearderProfile from "../ui/profilePage/HeaderProfile";
@@ -20,6 +20,7 @@ const Profile = () => {
         color: "#3a5998"
     }]
 
+    const {cartDispatch} = useContext(CartContext)
     const logout = async () => {
         try {
             setLoading(true);
@@ -28,7 +29,13 @@ const Profile = () => {
                 type: "logout"
             });
 
-            nav.navigate("home")
+            cartDispatch({
+                type: "user_logged_out"
+            })
+
+            nav.navigate("home", {
+                screen: "index"
+            })
         } catch (ex) {
             console.error(ex)
         } finally {

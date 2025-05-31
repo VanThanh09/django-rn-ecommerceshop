@@ -7,6 +7,8 @@ import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CartContext, MyDispatchContext } from "../../configs/MyContext";
 import { IconButton } from 'react-native-paper'
+import { CommonActions } from '@react-navigation/native';
+
 const Login = ({ route }) => {
     const info = [{
         label: "Tên đăng nhập",
@@ -30,13 +32,42 @@ const Login = ({ route }) => {
     const { cartDispatch } = useContext(CartContext)
 
     useEffect(() => {
-        const { nestedScreen, previousRoute, prevRouteParams } = route.params || {}
-        if (previousRoute) {
+        // Khi route, nav thay đổi thì useEffect sẽ tạo call back với closure mới => các biến sẽ được truy xuất mới nhất
+        const { prevScreen } = route.params || {}
+
+        if (prevScreen) {
+            const handleGoBack = () => {
+                if (prevScreen.nestedScreen) {
+                    nav.navigate(prevScreen.nestedScreen, { screen: prevScreen.previousRoute, params: { ...prevScreen.prevRouteParams } })
+                }
+                else {
+                    nav.navigate(prevScreen.previousRoute, { ...prevScreen.prevRouteParams })
+                }
+
+                // Sau khi quay trở về thì xóa trang login vừa rồi đi
+                nav.dispatch(state => {
+                    // Case 1: Login is the only route → replace entire stack
+                    if (state.routes.length === 1 && state.routes[0].name === 'login') {
+                        return CommonActions.reset({
+                            index: 0,
+                            routes: [{ name: 'index' }], // Fallback to index screen (màn hình Tài khoản)
+                        });
+                    }
+
+                    // Case 2: Have something exist in account stack
+                    const routes = state.routes.filter(r => r.name !== 'login');
+                    return CommonActions.reset({
+                        ...state,
+                        routes,
+                        index: routes.length - 1, // Prevent index overflow, active the last screen visited
+                    });
+                })
+            }
 
             nav.setOptions({
                 headerLeft: () => (
                     <IconButton icon="chevron-left" size={30} iconColor="#fa5230"
-                        onPress={nestedScreen === undefined ? () => nav.navigate(previousRoute, { ...prevRouteParams }) : () => { nav.navigate(nestedScreen, { screen: previousRoute, params: { ...prevRouteParams } }) }} />
+                        onPress={handleGoBack} />
                 )
             })
         }
@@ -65,7 +96,6 @@ const Login = ({ route }) => {
                 setLoading(true);
                 setMsg(null);
 
-
                 let res = await Apis.post(endpoints['login'], {
                     ...user,
                     'client_id': 'eB5z6lDf1lWumxja2xtM17UjBc6t7FgK1lKnFrpB',
@@ -89,20 +119,43 @@ const Login = ({ route }) => {
                 });
 
                 // cart- infomation
-                let cart = await authApis(token).get(endpoints.cart_total_quantity);
-                cartDispatch({ type: 'user_logged_in', payload: cart.data['total_quantity'] })
+                let cart = await authApis(token).get(endpoints.cart_basic_info);
 
-                const { nestedScreen, previousRoute, prevRouteParams } = route.params || {}
-                //console.log("actionn", action)
-                if (previousRoute) {
-                    if (nestedScreen) {
-                        nav.navigate(nestedScreen, { screen: previousRoute, params: { ...prevRouteParams } })
+                cartDispatch({ type: 'user_logged_in', payload: cart.data })
+
+                //// /// const { nestedScreen, previousRoute, prevRouteParams } = route.params || {}
+                const { screenAfterLogin } = route.params || {}
+                // Login thành công
+                if (screenAfterLogin) {
+                    if (screenAfterLogin.nestedScreen) {
+                        nav.navigate(screenAfterLogin.nestedScreen, { screen: screenAfterLogin.route, params: { ...screenAfterLogin.params } })
                     } else {
-                        nav.navigate(previousRoute, { ...prevRouteParams })
+                        nav.navigate(screenAfterLogin.previousRoute, { ...screenAfterLogin.params })
                     }
+
+                    // Reset account stack (Mystack) to active the Profile screen wipe the screen login in the history state
+                    nav.dispatch(state => {
+                        // Case 1: Login is the only route → replace entire stack
+                        if (state.routes.length === 1 && state.routes[0].name === 'login') {
+                            return CommonActions.reset({
+                                index: 0,
+                                routes: [{ name: 'index' }], // Fallback to index screen
+                            });
+                        }
+
+                        // Case 2: Have something exist in account stack
+                        const routes = state.routes.filter(r => r.name !== 'login');
+                        return CommonActions.reset({
+                            ...state,
+                            routes,
+                            index: routes.length - 1, // Prevent index overflow, active the last screen visited
+                        });
+                    })
                 }
                 else
-                    nav.navigate('home')
+                    nav.navigate('home', {
+                        screen: "index"
+                    })
 
             } catch (ex) {
                 console.error(ex);

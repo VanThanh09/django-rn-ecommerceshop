@@ -22,8 +22,9 @@ urlpatterns = [
     # path('comments/', views.CommentCreateAPIView.as_view())
     path('user/orders/', views.userpurchase_list),
     path('portal/store/orders/',views.storeorder_list),
-    path('cart/total_quantity/', views.get_products_in_cart),
+    path('cart/basic-info/', views.get_products_in_cart),
     path('cart/',views.get_products_detail_in_cart),
+    path('add_to_cart/', views.create_mul_cartdetail),
     path('checkout/',views.checkout),
     path('update_like_comments/',views.updateLikeComments),
     path('callbackMoMo/',views.callbackMoMo),

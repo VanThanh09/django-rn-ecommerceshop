@@ -289,23 +289,22 @@ class ActionVerificationViewSet(viewsets.ViewSet):
 
 
 def change_cart_detail_active(cart):
-    deactive_products = cart.products.filter(active=False)
-    for p in deactive_products:
-        cart_detail = cart.cartdetail_set.get(product_variant=p)
-        cart_detail.active = False
-        cart_detail.save()
+    list_cart_detail = CartDetail.objects.filter(cart=cart)
+    for c in list_cart_detail:
+        c.active = c.product_variant.active
+        c.save()
 
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def get_products_in_cart(request):
     cart = Cart.objects.get(user=request.user)
-    if cart.total_quantity == 0:
-        return Response(data={'msg': 'No product in cart'}, status=status.HTTP_200_OK)
+    # if cart.total_quantity == 0:
+    #     return Response(data={'msg': 'No product in cart'}, status=status.HTTP_200_OK)
     # Update if product_variant still active or not
-    change_cart_detail_active(cart=cart)
-    # serializer = serializers.CartSerializer(cart)
-    return Response(data={'total_quantity': cart.total_quantity}, status=status.HTTP_200_OK)
+    serializer = serializers.CartSerializer(cart)
+    return Response(data=serializer.data, status=status.HTTP_200_OK)
+    #return Response(data={'total_quantity': cart.total_quantity}, status=status.HTTP_200_OK)
 
 
 """
@@ -447,6 +446,29 @@ class CartDetailViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.Updat
         instance.cart.total_quantity -= 1
         instance.cart.save()
         instance.delete()
+
+# Create multiple cart detail
+
+@api_view(['POST'])
+@permission_classes([perms.OwnerCartDetailPermission])
+def create_mul_cartdetail(request):
+    product_variants = request.data.pop('product_variants')
+    cart = request.user.cart
+    if (cart.id != request.data.get('cart_id')):
+        return Response(data={"msg": "This is not your cart!!!"}, status=status.HTTP_403_FORBIDDEN)
+
+    if (product_variants):
+        for variant in product_variants:
+            cartDetail, created = CartDetail.objects.get_or_create(cart=cart,product_variant_id=variant.get('id'))
+            cartDetail.quantity += variant.get('quantity')
+            if created:
+                cart.total_quantity += 1
+            cartDetail.save()
+            cart.save()
+
+    serializer = serializers.CartSerializer(cart)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
 # Done cart/ , cart-basic-info, checkout
 # Create order, orderDetail for each shop, after that remove all the from cart
