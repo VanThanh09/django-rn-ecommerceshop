@@ -98,8 +98,8 @@ const Login = ({ route }) => {
 
                 let res = await Apis.post(endpoints['login'], {
                     ...user,
-                    'client_id': 'sBSm4JuvTR5IuZXxQ7JIFXzHG6u5yWiJp6YPjR8e',
-                    'client_secret': 'p4oY40jrnztZ4XroNsxRD24dqso6DhoKlgSUR0LZ6upNwiuqu2abdM614IvutkyNUhyBpSg03AtHWNUR238lF6Ji46i5EYSUPiHnonnnw8G5uq5yZubVgc2f962Bsu3u',
+                    'client_id': 'ONUdNIUXAlelwjWJZjq4kl2qiFfdo4uF1GzCwFhB',
+                    'client_secret': 'H5J5DTvlIQeAWiNgKQsXDZLsLVORKXbtDY4oQrMg3j3HBb7edGnhtlCYI5OnIheuYpMKOPjZWNGnCg1OYOl903nLybKEk7oACeeQlBnzSFFmD4WJO1LMLqT4zKzhl2sm',
                     'grant_type': 'password'
                 }, {
                     headers: {
@@ -117,12 +117,15 @@ const Login = ({ route }) => {
                     "payload": u.data
                 });
 
-                // cart- infomation
-                let cart = await authApis(token).get(endpoints.cart_basic_info);
+                // create em in admin site, not cart
+                if (u.data.user_role != 'EM') {
+                    // cart- infomation
+                    let cart = await authApis(token).get(endpoints.cart_basic_info);
 
-                cartDispatch({ type: 'user_logged_in', payload: cart.data })
+                    cartDispatch({ type: 'user_logged_in', payload: cart.data })
+                }
 
-                //// /// const { nestedScreen, previousRoute, prevRouteParams } = route.params || {}
+                // const { nestedScreen, previousRoute, prevRouteParams } = route.params || {}
                 const { screenAfterLogin } = route.params || {}
 
                 // Login thành công

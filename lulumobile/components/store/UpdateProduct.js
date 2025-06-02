@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Text, View, TextInput, ScrollView, Image, ActivityIndicator, StyleSheet, TouchableOpacity, Alert, Modal, TouchableWithoutFeedback, FlatList, Pressable } from "react-native";
+import { Text, View, TextInput, ScrollView, Image, ActivityIndicator, StyleSheet, TouchableOpacity, Alert, Modal, TouchableWithoutFeedback, FlatList, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import Apis, { authApis, endpoints } from "../../configs/Apis";
 import * as ImagePicker from 'expo-image-picker';
 import MyStyles from "../../styles/MyStyles";
@@ -46,9 +46,9 @@ const UpdateProduct = ({ route }) => {
         loadProduct();
     }, []);
 
-    useEffect(() => {
-        console.log(JSON.stringify(product, null, 2));
-    }, [product]);
+    // useEffect(() => {
+    //     console.log(JSON.stringify(product, null, 2));
+    // }, [product]);
 
     const pick = async (setFunc) => {
         let { status } =
@@ -148,189 +148,192 @@ const UpdateProduct = ({ route }) => {
     );
 
     return (
-        <ScrollView style={{ padding: 10 }}>
-
-            {/* Nhập ảnh sản phẩm */}
-            <View style={styles.viewContainer}>
-                <Text style={styles.label}>
-                    Ảnh sản phẩm <Text style={styles.required}>*</Text>
-                </Text>
-                <View style={styles.imageBlank}>
-                    <TouchableOpacity onPress={() => pick(setLogo)} style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                        {logo ? (
-                            <Image source={{ uri: logo.uri }} style={{ width: '100', height: '100', resizeMode: 'contain' }} />
-                        ) : (
-                            <Image source={{ uri: product.logo }} style={{ width: 100, height: 100 }} />
-                        )}
-                    </TouchableOpacity>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+            <ScrollView style={{ padding: 2 }}>
+                {/* Nhập ảnh sản phẩm */}
+                <View style={styles.viewContainer}>
+                    <Text style={styles.label}>
+                        Ảnh sản phẩm <Text style={styles.required}>*</Text>
+                    </Text>
+                    <View style={styles.imageBlank}>
+                        <TouchableOpacity onPress={() => pick(setLogo)} style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                            {logo ? (
+                                <Image source={{ uri: logo.uri }} style={{ width: '100', height: '100', resizeMode: 'contain' }} />
+                            ) : (
+                                <Image source={{ uri: product.logo }} style={{ width: 100, height: 100 }} />
+                            )}
+                        </TouchableOpacity>
+                    </View>
                 </View>
-            </View>
 
-            {/* Nhập tên sản phẩm */}
-            <View style={styles.viewContainer}>
-                <Text style={styles.label}>
-                    Tên sản phẩm <Text style={styles.required}>*</Text>
-                </Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Nhập tên sản phẩm"
-                    placeholderTextColor="#aaa"
-                    value={name}
-                    onChangeText={setName}
-                />
-            </View>
+                {/* Nhập tên sản phẩm */}
+                <View style={styles.viewContainer}>
+                    <Text style={styles.label}>
+                        Tên sản phẩm <Text style={styles.required}>*</Text>
+                    </Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Nhập tên sản phẩm"
+                        placeholderTextColor="#aaa"
+                        value={name}
+                        onChangeText={setName}
+                    />
+                </View>
 
-            {/* Nhập mô tả sản phẩm */}
-            <View style={styles.viewContainer}>
-                <Text style={styles.label}>
-                    Mô tả sản phẩm <Text style={styles.required}>*</Text>
-                </Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Mô tả sản phẩm"
-                    placeholderTextColor="#aaa"
-                    value={description}
-                    multiline
-                    onChangeText={setDescription}
-                />
-            </View>
+                {/* Nhập mô tả sản phẩm */}
+                <View style={styles.viewContainer}>
+                    <Text style={styles.label}>
+                        Mô tả sản phẩm <Text style={styles.required}>*</Text>
+                    </Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Mô tả sản phẩm"
+                        placeholderTextColor="#aaa"
+                        value={description}
+                        multiline
+                        onChangeText={setDescription}
+                    />
+                </View>
 
-            <View style={styles.viewContainer}>
-                <TouchableOpacity onPress={handleAddCate}>
-                    <AddDetailBtn label="Chọn thể loại" onPress={handleAddCate} />
-                    {selectedCate.map((cate) => (
-                        <View key={cate.id} style={{ backgroundColor: '#fff', padding: 3, marginLeft: 10 }}>
-                            <Text style={{ fontSize: 14 }}>  {cate.name} </Text>
-                        </View>
-                    ))}
-                </TouchableOpacity>
-                <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
-                    <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
-                        <View style={styles.modalContainer}>
-                            <TouchableWithoutFeedback onPress={() => { }}>
-                                <View style={styles.modal}>
-                                    <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>Chọn thể loại</Text>
-                                    <FlatList
-                                        data={categories}
-                                        keyExtractor={(item) => item.id.toString()}
-                                        renderItem={({ item }) => {
-                                            const isSelected = selectedCate.find(cate => cate.id === item.id);
-                                            return (
-                                                <Pressable onPress={() => selectCategory(item.id, item.name)} style={[styles.pressable]}>
-                                                    <Text style={{ fontWeight: isSelected ? 'bold' : 'normal' }}>{item.name}</Text>
-                                                </Pressable>
-                                            )
-                                        }}
-                                    />
-                                    <View style={{ alignItems: 'flex-end' }}>
-                                        <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginTop: 10 }}>
-                                            <Text style={{ color: 'red', textAlign: 'right', padding: 10 }}>Đóng</Text>
+                <View style={styles.viewContainer}>
+                    <TouchableOpacity onPress={handleAddCate}>
+                        <AddDetailBtn label="Chọn thể loại" onPress={handleAddCate} />
+                        {selectedCate.map((cate) => (
+                            <View key={cate.id} style={{ backgroundColor: '#fff', padding: 3, marginLeft: 10 }}>
+                                <Text style={{ fontSize: 14 }}>  {cate.name} </Text>
+                            </View>
+                        ))}
+                    </TouchableOpacity>
+                    <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+                        <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+                            <View style={styles.modalContainer}>
+                                <TouchableWithoutFeedback onPress={() => { }}>
+                                    <View style={styles.modal}>
+                                        <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>Chọn thể loại</Text>
+                                        <FlatList
+                                            data={categories}
+                                            keyExtractor={(item) => item.id.toString()}
+                                            renderItem={({ item }) => {
+                                                const isSelected = selectedCate.find(cate => cate.id === item.id);
+                                                return (
+                                                    <Pressable onPress={() => selectCategory(item.id, item.name)} style={[styles.pressable]}>
+                                                        <Text style={{ fontWeight: isSelected ? 'bold' : 'normal' }}>{item.name}</Text>
+                                                    </Pressable>
+                                                )
+                                            }}
+                                        />
+                                        <View style={{ alignItems: 'flex-end' }}>
+                                            <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginTop: 10 }}>
+                                                <Text style={{ color: 'red', textAlign: 'right', padding: 10 }}>Đóng</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                </TouchableWithoutFeedback>
+                            </View>
+                        </TouchableWithoutFeedback>
+                    </Modal>
+                </View>
+
+                {variants.map((v, i) => (
+                    <View key={i} style={{ flex: 1, backgroundColor: '#fff', marginTop: 4, padding: 7 }}>
+
+                        <Text style={{ fontWeight: 'bold' }}> {v.attributes.map(attr => `${attr.attribute_name}: ${attr.value}`).join('  -  ')} </Text>
+
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <View>
+                                {v.logo && v.logo.uri ? <>
+                                    <View style={styles.image}>
+                                        <TouchableOpacity onPress={() => console.log(1)}>
+                                            <Image source={{ uri: v.logo.uri }} style={{ width: 100, height: 100 }} />
                                         </TouchableOpacity>
                                     </View>
-                                </View>
-                            </TouchableWithoutFeedback>
-                        </View>
-                    </TouchableWithoutFeedback>
-                </Modal>
-            </View>
+                                </> : <>
 
-            <Text style={{ marginTop: 10 }}>Biến thể:</Text>
-            {variants.map((v, i) => (
-                <View key={i} style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <View>
-                            {v.logo && v.logo.uri ? <>
-                                <View style={styles.image}>
-                                    <TouchableOpacity onPress={() => console.log(1)}>
-                                        <Image source={{ uri: v.logo.uri }} style={{ width: 100, height: 100 }} />
-                                    </TouchableOpacity>
-                                </View>
-                            </> : <>
+                                    <View style={styles.image}>
+                                        <TouchableOpacity onPress={() => console.log(1)}>
+                                            <Image source={{ uri: v.logo }} style={{ width: 100, height: 100 }} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </>}
 
-                                <View style={styles.image}>
-                                    <TouchableOpacity onPress={() => console.log(1)}>
-                                        <Image source={{ uri: v.logo }} style={{ width: 100, height: 100 }} />
-                                    </TouchableOpacity>
-                                </View>
-                            </>}
-
-                        </View>
-
-                        <View style={{ marginRight: 10 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={{ minWidth: 80 }}>Giá:  </Text>
-                                <TextInput
-                                    placeholder="Nhập giá"
-                                    keyboardType="numeric"
-                                    value={v.price?.toString() || ''}
-                                    onChangeText={(text) => handleVariantChange(i, 'price', text)}
-                                    style={{ minWidth: 70 }}
-                                />
                             </View>
 
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={{ minWidth: 80 }}>Số lượng:  </Text>
-                                <TextInput
-                                    placeholder="Số lượng"
-                                    keyboardType="numeric"
-                                    value={v.quantity?.toString() || ''}
-                                    onChangeText={(text) => handleVariantChange(i, 'quantity', text)}
-                                    style={{ minWidth: 70 }}
-                                />
+                            <View style={{ marginRight: 10 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Text style={{ minWidth: 80 }}>Giá:  </Text>
+                                    <TextInput
+                                        placeholder="Nhập giá"
+                                        keyboardType="numeric"
+                                        value={v.price?.toString() || ''}
+                                        onChangeText={(text) => handleVariantChange(i, 'price', text)}
+                                        style={{ minWidth: 70 }}
+                                    />
+                                </View>
+
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Text style={{ minWidth: 80 }}>Số lượng:  </Text>
+                                    <TextInput
+                                        placeholder="Số lượng"
+                                        keyboardType="numeric"
+                                        value={v.quantity?.toString() || ''}
+                                        onChangeText={(text) => handleVariantChange(i, 'quantity', text)}
+                                        style={{ minWidth: 70 }}
+                                    />
+                                </View>
                             </View>
                         </View>
                     </View>
-                </View>
-            ))}
+                ))}
 
-            <View style={{ marginTop: 15 }}>
-                <TouchableOpacity onPress={() => {
-                    Alert.alert("Xác nhận", "Lưu thông tin", [{
-                        text: "Cancel",
-                        style: 'cancel',
-                    }, {
-                        text: 'OK',
-                        onPress: () => handleUpdate(),
-                    }])
-                }}>
-                    <Button style={[MyStyles.m, styles.button]}>
-                        {loading ? (
-                            <ActivityIndicator color="white" />
-                        ) : (
-                            <Text style={styles.buttonText}>Xác nhận</Text>
-                        )}
-                    </Button>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => {
-                    Alert.alert("Thoát", "Bạn muốn hủy", [{
-                        text: "Cancel",
-                        style: 'cancel',
-                    }, {
-                        text: 'OK',
-                        onPress: () => nav.reset({
-                            index: 0,
-                            routes: [{ name: 'storeMain' }],
-                        }),
-                    }])
-                }}>
-                    <Button style={[{
-                        borderRadius: 3,
-                        borderWidth: 1,
-                        borderColor: '#fff',
-                        backgroundColor: '#fff'
-                    }, MyStyles.m]}>
-                        <Text style={{ color: "#fa5230" }}>Hủy</Text>
-                    </Button>
-                </TouchableOpacity>
-            </View>
-        </ScrollView >
+                <View style={{ marginTop: 15 }}>
+                    <TouchableOpacity onPress={() => {
+                        Alert.alert("Xác nhận", "Lưu thông tin", [{
+                            text: "Cancel",
+                            style: 'cancel',
+                        }, {
+                            text: 'OK',
+                            onPress: () => handleUpdate(),
+                        }])
+                    }}>
+                        <Button style={[MyStyles.m, styles.button]}>
+                            {loading ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Text style={styles.buttonText}>Xác nhận</Text>
+                            )}
+                        </Button>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => {
+                        Alert.alert("Thoát", "Bạn muốn hủy", [{
+                            text: "Cancel",
+                            style: 'cancel',
+                        }, {
+                            text: 'OK',
+                            onPress: () => nav.reset({
+                                index: 0,
+                                routes: [{ name: 'storeMain' }],
+                            }),
+                        }])
+                    }}>
+                        <Button style={[{
+                            borderRadius: 3,
+                            borderWidth: 1,
+                            borderColor: '#fff',
+                            backgroundColor: '#fff'
+                        }, MyStyles.m]}>
+                            <Text style={{ color: "#fa5230" }}>Hủy</Text>
+                        </Button>
+                    </TouchableOpacity>
+                </View>
+            </ScrollView >
+        </KeyboardAvoidingView>
     );
 };
 
 const styles = StyleSheet.create({
     viewContainer: {
         backgroundColor: '#fff',
-        marginVertical: 4,
+        marginTop: 4,
         padding: 7
     },
     label: {

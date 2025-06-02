@@ -14,8 +14,8 @@ class User(AbstractUser):
 
     avatar = CloudinaryField(null=True)
     user_role = models.CharField(max_length=3, choices=UserRole, default=UserRole.CUSTOMER)
-    address = models.JSONField(null=True, default=dict)
-    phone_number = models.CharField(max_length=10,null=True,unique=True)
+    address = models.JSONField(null=True, default=dict, blank=True)
+    phone_number = models.CharField(max_length=10, null=True, unique=True, blank=True)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"

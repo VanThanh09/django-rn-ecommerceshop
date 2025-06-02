@@ -155,13 +155,13 @@ const AddProduct = () => {
         }
     }, [variants]);
 
-    useEffect(() => {
-        console.log(attributes)
-    }, [attributes]);
+    // useEffect(() => {
+    //     console.log(attributes)
+    // }, [attributes]);
 
-    useEffect(() => {
-        console.log(JSON.stringify(product, null, 2));
-    }, [product])
+    // useEffect(() => {
+    //     console.log(JSON.stringify(product, null, 2));
+    // }, [product])
 
     const handleInfoVariant = (attributes) => {
         setVariants(generateVariants(attributes));

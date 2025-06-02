@@ -104,7 +104,7 @@ function Home() {
     }
 
     useEffect(() => {
-        // console.log(page)
+        console.log(page)
         loadProducts();
     }, [page]);
 

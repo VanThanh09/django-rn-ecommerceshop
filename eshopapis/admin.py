@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils.html import mark_safe
 from django.utils import timezone
 from .models import *
-from django.db.models import Min, Sum, Count, F, ExpressionWrapper, DecimalField, Q, FloatField
+from django.db.models import Min, Sum, Count, F
 from django.db.models.functions import TruncMonth
 
 class MyAdminSite(admin.AdminSite):
@@ -204,7 +204,18 @@ class CategoryAdmin(admin.ModelAdmin):
     count_product.short_description = "PRODUCTS"
 
 
-admin_site.register(User)
+class MyUserAdmin(admin.ModelAdmin):
+    # overwrite function save default for hash the password
+    def save_model(self, request, obj, form, change):
+
+        # check not change (creat new) and 'password' in form.changed_data ( change the password exist)
+        if not change or 'password' in form.changed_data:
+            obj.set_password(obj.password)  # hass function
+
+        super().save_model(request, obj, form, change)  # call function to save
+
+
+admin_site.register(User, MyUserAdmin)
 admin_site.register(Store, StoreAdmin)
 admin_site.register(VerificationSeller)
 admin_site.register(Product)

@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { MyUserContext } from "../../configs/MyContext";
-import { ActivityIndicator, FlatList, Image, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, FlatList, Image, Keyboard, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { getChatId, sendMsg, subscribeToMsg } from "../../services/serviceChat";
 import MyStyles from "../../styles/MyStyles";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,6 +17,7 @@ const ChatScreen = ({ route }) => {
     const [messages, setMessages] = useState([]);
     const [textSend, setTextSend] = useState();
     const [loading, setLoading] = useState(false);
+    const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
     const user = useContext(MyUserContext);
     const senderId = user.id;
@@ -40,6 +41,25 @@ const ChatScreen = ({ route }) => {
         fetchRrecieverUser();
     }, [])
 
+    useEffect(() => {
+        const keyboardDidShowListener = Keyboard.addListener(
+            'keyboardDidShow',
+            () => {
+                setKeyboardVisible(true); // Bàn phím bật
+            }
+        );
+        const keyboardDidHideListener = Keyboard.addListener(
+            'keyboardDidHide',
+            () => {
+                setKeyboardVisible(false); // Bàn phím tắt
+            }
+        );
+
+        return () => {
+            keyboardDidShowListener.remove();
+            keyboardDidHideListener.remove();
+        };
+    }, []);
 
     useEffect(() => {
         if (!chatId) return;
@@ -47,7 +67,6 @@ const ChatScreen = ({ route }) => {
         setLoading(true);
 
         const unsub = subscribeToMsg(chatId, (msgs) => {
-            console.log("vo roi ma");
             setMessages(msgs);
             setLoading(false); // loading = false when load the first msg
         });
@@ -118,12 +137,12 @@ const ChatScreen = ({ route }) => {
                             />
                         </>}
 
-                        <View style={styles.inputContainer}>
+                        <View style={[styles.inputContainer, Platform.OS === 'android' && isKeyboardVisible ? { marginBottom: 35 } : null]}>
                             <TextInput
                                 value={textSend}
                                 onChangeText={setTextSend}
                                 placeholder="Nhập tin nhắn..."
-                                style={styles.textInput}
+                                style={[styles.textInput]}
                             />
                             <TouchableOpacity onPress={handleSend}>
                                 <Icon source="send" size={30} color="#1e1e1e" />

@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = 'https://5684-2402-800-62ec-c9ee-2477-8d43-8ae3-e2c1.ngrok-free.app/'
+const BASE_URL = 'https://6462-2402-800-62ec-c9ee-e9fa-4d9f-161b-57e1.ngrok-free.app/'
 export const endpoints = {
     'products': '/products/',
     'product': (pId) => `/product/${pId}/`,
@@ -9,7 +9,7 @@ export const endpoints = {
     'current_user': '/users/current_user/',
     'info_user': (uId) => `/users/${uId}/info_user/`,
     'verification_seller': '/verification_seller/',
-    'categories': '/categories',
+    'categories': '/categories/',
     'create_product': '/create_product/',
     'store': '/store/',
     'action_verification': (rId) => `/action_verification/${rId}/`,

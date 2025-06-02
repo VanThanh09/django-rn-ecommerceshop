@@ -34,15 +34,15 @@ const Store = () => {
 
                 let token = await AsyncStorage.getItem("token");
                 let url = `${endpoints['store']}products?page=${page}`;
-                // console.log(url);
 
                 let res = await authApis(token).get(url);
 
-                if (page === 1)
-                    setMyProducts(res.data.results)
-                else
-                    setMyProducts((prev) => [...prev, ...res.data.results])
-
+                if (Array.isArray(res.data.results)) {
+                    if (page === 1)
+                        setMyProducts(res.data.results)
+                    else
+                        setMyProducts((prev) => [...prev, ...res.data.results])
+                }
 
                 if (res.data.next === null)
                     setPage(0)
@@ -63,7 +63,7 @@ const Store = () => {
     }, [])
 
     const loadMore = () => {
-        if (!loading && page > 0)
+        if (!loading && page > 0 && myProducts.length > 1)
             setPage(page + 1)
     }
 
