@@ -379,7 +379,7 @@ const AddProduct = () => {
                         />
                     </View>
 
-                    {/* Nhập tên sản phẩm */}
+                    {/* Nhập mô tả sản phẩm */}
                     <View style={styles.viewContainer}>
                         <Text style={styles.label}>
                             Mô tả sản phẩm <Text style={styles.required}>*</Text>
@@ -389,6 +389,7 @@ const AddProduct = () => {
                             placeholder="Mô tả sản phẩm"
                             placeholderTextColor="#aaa"
                             value={product["description"]}
+                            multiline
                             onChangeText={text => setStateProduct("description", text)}
                         />
                     </View>

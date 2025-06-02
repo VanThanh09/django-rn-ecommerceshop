@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity,
 import { MyUserContext } from "../../configs/MyContext";
 import { subscribeToConversations } from "../../services/serviceChat";
 import MyStyles from "../../styles/MyStyles";
-import { Button } from "react-native-paper";
+import { Button, IconButton } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { authApis, endpoints } from "../../configs/Apis";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -13,6 +13,19 @@ const Conversations = () => {
     const user = useContext(MyUserContext);
     const [conversations, setConversations] = useState([]);
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        try {
+            nav.setOptions({
+                headerLeft: () => (
+                    <IconButton icon="arrow-left" size={26} iconColor="#333" style={{ marginLeft: -10 }}
+                        onPress={() => nav.navigate('home', { screen: 'homeMain' })} />
+                )
+            })
+        } catch (error) {
+            throw error
+        }
+    }, [nav])
 
     useEffect(() => {
         try {
@@ -69,59 +82,67 @@ const Conversations = () => {
     return (
         <View style={[MyStyles.container, { backgroundColor: '#fff' }]}>
             {loading ? <ActivityIndicator style={{ marginTop: 50 }} /> : <>
+                {conversations.length > 0 ? <>
+                    <FlatList
+                        data={conversations}
+                        keyExtractor={(item) => item.id}
+                        renderItem={({ item }) => (
+                            <TouchableOpacity
+                                onPress={() => nav.navigate('chat', {
+                                    "recieverUser": item.receiverUser,
+                                    "chatId": item.id,
 
-                <FlatList
-                    data={conversations}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => (
-                        <TouchableOpacity
-                            onPress={() => nav.navigate('chat', {
-                                "recieverUser": item.receiverUser,
-                                "chatId": item.id,
+                                })}
+                                style={styles.conv}
+                            >
+                                <View style={styles.row}>
+                                    {/* Avatar */}
+                                    <Image
+                                        source={{ uri: item.receiverUser.avatar }}
+                                        style={styles.avatar}
+                                    />
 
-                            })}
-                            style={styles.conv}
-                        >
-                            <View style={styles.row}>
-                                {/* Avatar */}
-                                <Image
-                                    source={{ uri: item.receiverUser.avatar }}
-                                    style={styles.avatar}
-                                />
-
-                                {/* Text Content */}
-                                <View style={{ flex: 1 }}>
-                                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#000' }}>
-                                        {item.receiverUser.last_name} {item.receiverUser.first_name}
-                                    </Text>
-                                    <View style={[styles.row, { justifyContent: 'space-between' }]}>
-                                        <Text
-                                            style={{
-                                                fontSize: 13,
-                                                color: '#666',
-                                                marginTop: 2
-                                            }}
-                                            numberOfLines={1}
-                                            ellipsizeMode="tail"
-                                        >
-                                            {item.lastMsg}
+                                    {/* Text Content */}
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontSize: 16, fontWeight: '600', color: '#000' }}>
+                                            {item.receiverUser.last_name} {item.receiverUser.first_name}
                                         </Text>
-                                        <Text
-                                            style={{
-                                                fontSize: 13,
-                                                color: '#666',
-                                                marginTop: 2
-                                            }}
-                                        >
-                                            {item.updateAt?.toLocaleString('vi-VN', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) || 'Chưa cập nhật'}
-                                        </Text>
+                                        <View style={[styles.row, { justifyContent: 'space-between' }]}>
+                                            <Text
+                                                style={{
+                                                    fontSize: 13,
+                                                    color: '#666',
+                                                    marginTop: 2
+                                                }}
+                                                numberOfLines={1}
+                                                ellipsizeMode="tail"
+                                            >
+                                                {item.lastMsg}
+                                            </Text>
+                                            <Text
+                                                style={{
+                                                    fontSize: 13,
+                                                    color: '#666',
+                                                    marginTop: 2
+                                                }}
+                                            >
+                                                {item.updateAt?.toLocaleString('vi-VN', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) || 'Chưa cập nhật'}
+                                            </Text>
+                                        </View>
                                     </View>
-                                </View>
 
-                            </View>
-                        </TouchableOpacity>
-                    )}
-                />
+                                </View>
+                            </TouchableOpacity>
+                        )}
+                    />
+                </> : <>
+                    <View style={[{ justifyContent: 'center', alignItems: 'center', flex: 1 }]}>
+                        <Text style={{ textAlign: 'center' }}>
+                            Không có đoạn chat nào
+                        </Text>
+                    </View>
+                </>}
+
             </>}
         </View>
 

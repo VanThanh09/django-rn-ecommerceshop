@@ -6,10 +6,8 @@ from django.urls import reverse
 from django.utils.html import mark_safe
 from django.utils import timezone
 from .models import *
-from django.db.models import Min
+from django.db.models import Min, Sum, Count, F, ExpressionWrapper, DecimalField, Q, FloatField
 from django.db.models.functions import TruncMonth
-from django.db.models import Count
-
 
 class MyAdminSite(admin.AdminSite):
     site_header = 'ADMIN PAGE'
@@ -36,11 +34,68 @@ class MyAdminSite(admin.AdminSite):
         context['user_chart_labels'] = json.dumps(labels)
         context['user_chart_data'] = json.dumps(counts)
 
-        context['total_users'] = User.objects.count() - 1 # reduce admin
         context['total_products'] = Product.objects.count()
+
+        context['sold_products'] = OrderDetail.objects.filter(order_status=OrderDetail.OrderStatus.SUCCESS).aggregate(
+            total_sold = Sum('quantity')
+        )['total_sold'] or 0
+
+        context['sold_products_30_days'] = OrderDetail.objects.filter(
+            order_status=OrderDetail.OrderStatus.SUCCESS,
+            order__created_date__gte=last_30_days).aggregate(
+            total_sold = Sum('quantity')
+        )['total_sold'] or 0
+
+        context['total_users'] = User.objects.count()
         context['total_stores'] = Store.objects.count()
+
         context['total_order'] = Order.objects.count()
         context['total_order_30_days'] = Order.objects.filter(created_date__gte=last_30_days).count()
+
+        revenue_30_days = Order.objects.filter(
+            paid=True,
+            created_date__gte=last_30_days
+        ).aggregate(
+            total_price=Sum('total_price')
+        )['total_price'] or 0
+
+        revenue_1_year = Order.objects.filter(
+            paid=True,
+            created_date__gte=last_year
+        ).aggregate(
+            total_price=Sum('total_price')
+        )['total_price'] or 0
+
+        context.update({
+            'revenue_30_days': "{:,.0f}".format(revenue_30_days),
+            'revenue_1_year': "{:,.0f}".format(revenue_1_year)
+        })
+
+        context['top_categories'] = list(
+            Category.objects.annotate(product_count=Count('products'))
+            .order_by('-product_count')
+            .values_list('name', 'product_count')[:5]
+        )
+
+        revenue_by_store = list(OrderDetail.objects.filter(
+            order_status=OrderDetail.OrderStatus.SUCCESS,
+            product_variant__price__isnull=False,
+            store__isnull=False
+        ).values('store__id', 'store__name', 'store__logo').annotate(
+            total_revenue=Sum(F('quantity') * F('product_variant__price'))
+        ).order_by('-total_revenue'))[:5]
+
+        context.update({
+                'top_store': [
+                    (
+                        store['store__id'],
+                        store['store__name'],
+                        store['store__logo'],
+                        "{:,.0f}".format(store['total_revenue'] or 0)
+                    )
+                    for store in revenue_by_store
+                ]
+        })
 
         return context
 

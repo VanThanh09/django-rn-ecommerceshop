@@ -114,7 +114,11 @@ class ProductVariant(BaseModel):
     attributes = models.ManyToManyField('AttributeValue', blank=True)  # Các giá trị thuộc tính của biến thể
 
     def __str__(self):
-        return f"{self.product.name} - Tồn kho: {self.quantity} - Giá: {'{:,.0f}'.format(self.price)} VND"
+        attributeValues = self.attributes.all()
+        allValues = ''
+        for a in attributeValues:
+            allValues += a.value
+        return f"{self.product.name} - {allValues} - Tồn kho: {self.quantity} - Giá: {"{:,.0f}".format(self.price)} VND"
 
 
 class Order(models.Model):

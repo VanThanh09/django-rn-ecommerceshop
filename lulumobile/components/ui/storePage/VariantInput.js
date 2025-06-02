@@ -21,9 +21,7 @@ const VariantInput = ({ variant, index, updateVariant }) => {
                 Biến thể {index + 1}: {variant.attributes.map(attr => `${attr.name}: ${attr.value}`).join(' - ')}
             </Text>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-
                 <View>
-
                     {variant.logo ? <>
                         <View key={index} style={styles.image}>
                             <TouchableOpacity onPress={pickImage}>

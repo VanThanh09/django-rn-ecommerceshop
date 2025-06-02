@@ -1,37 +1,59 @@
 import { useContext, useEffect, useState } from "react";
 import { MyUserContext } from "../../configs/MyContext";
-import { FlatList, Image, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { sendMsg, subscribeToMsg } from "../../services/serviceChat";
+import { ActivityIndicator, FlatList, Image, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { getChatId, sendMsg, subscribeToMsg } from "../../services/serviceChat";
 import MyStyles from "../../styles/MyStyles";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoidingView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Icon, IconButton } from "react-native-paper";
+import Apis, { endpoints } from "../../configs/Apis";
 
 const ChatScreen = ({ route }) => {
-    const recieverUser = route.params?.recieverUser;
-    const chatId = route.params?.chatId;
+    const [recieverUser, setRecieverUser] = useState(route.params?.recieverUser);
+    const [chatId, setChatId] = useState(route.params?.chatId);
+    const storeOwnerId = route.params?.storeOwnerId;
+
+    const [messages, setMessages] = useState([]);
+    const [textSend, setTextSend] = useState();
+    const [loading, setLoading] = useState(false);
 
     const user = useContext(MyUserContext);
     const senderId = user.id;
-    const recieverId = recieverUser.id;
+    const recieverId = recieverUser?.id;
 
     const nav = useNavigation();
 
-    const [messages, setMessages] = useState([]);
-    const [textSend, setTextSend] = useState()
-    const [loading, setLoading] = useState(false);
+    useEffect(() => {
+        const fetchRrecieverUser = async () => {
+            if (!chatId || !recieverUser) {
+                try {
+                    const u = await Apis.get(endpoints['info_user'](storeOwnerId));
+                    setRecieverUser(u.data);
+                    setChatId(getChatId(storeOwnerId, senderId));
+                } catch (err) {
+                    throw err
+                }
+            }
+        }
+
+        fetchRrecieverUser();
+    }, [])
+
 
     useEffect(() => {
+        if (!chatId) return;
+
         setLoading(true);
 
         const unsub = subscribeToMsg(chatId, (msgs) => {
+            console.log("vo roi ma");
             setMessages(msgs);
             setLoading(false); // loading = false when load the first msg
         });
 
         return () => unsub();
-    }, [])
+    }, [chatId])
 
     const handleSend = async () => {
         if (textSend.trim() === '') return;
@@ -39,56 +61,80 @@ const ChatScreen = ({ route }) => {
             setTextSend('');
             await sendMsg(senderId, recieverId, textSend);
         } catch (ex) {
-            console.error(ex);
+            console.log(ex);
+        }
+    }
+
+    const previousRoute = route.params?.previousRoute;
+    const nestedScreen = route.params?.nestedScreen;
+    const prevRouteParams = route.params?.prevRouteParams;
+
+    const BackButton = () => {
+        if (previousRoute) {
+            return <IconButton icon="arrow-left" size={25} onPress={nestedScreen === undefined ? () => nav.navigate(previousRoute, { ...prevRouteParams }) : () => { nav.navigate(nestedScreen, { screen: previousRoute, params: { ...prevRouteParams } }) }} />
+        } else {
+            return <IconButton icon="arrow-left" size={25} onPress={() => nav.goBack()} />
         }
     }
 
     return (
         <SafeAreaView style={[MyStyles.container]}>
-            <View style={[MyStyles.container]}>
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === "ios" ? "padding" : "height"}
-                    style={{ flex: 1 }}
-                >
-                    <View style={styles.header}>
-                        <IconButton icon="arrow-left" size={25} onPress={() => nav.goBack()} />
-                        <Image source={{ uri: recieverUser.avatar }} style={styles.avatar} />
-                        <Text style={styles.fullName}>
-                            {recieverUser.last_name} {recieverUser.first_name}
-                        </Text>
-                    </View>
 
-                    <FlatList
-                        data={messages}
-                        keyExtractor={(item) => item.id}
-                        renderItem={({ item }) => (
-                            <View style={[styles.msg, {
-                                alignSelf: item.senderId === senderId ? 'flex-end' : 'flex-start',
-                                backgroundColor: item.senderId === senderId ? '#DCF8C6' : '#FFF',
-                            }]}>
-                                <Text style={{ fontSize: 15, color: '#000', flexWrap: 'wrap' }}>
-                                    {item.text}
-                                </Text>
-                            </View>
-                        )}
-                        contentContainerStyle={{ padding: 10 }}
+            {recieverUser ? <>
+
+                <View style={[MyStyles.container]}>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === "ios" ? "padding" : "height"}
                         style={{ flex: 1 }}
-                        inverted
-                        showsVerticalScrollIndicator={false}
-                    />
-                    <View style={styles.inputContainer}>
-                        <TextInput
-                            value={textSend}
-                            onChangeText={setTextSend}
-                            placeholder="Nhập tin nhắn..."
-                            style={styles.textInput}
-                        />
-                        <TouchableOpacity onPress={handleSend}>
-                            <Icon source="send" size={30} color="#1e1e1e" />
-                        </TouchableOpacity>
-                    </View>
-                </KeyboardAvoidingView>
-            </View>
+                    >
+                        <View style={styles.header}>
+                            <BackButton />
+                            <Image source={{ uri: recieverUser.avatar }} style={styles.avatar} />
+                            <Text style={styles.fullName}>
+                                {recieverUser.last_name} {recieverUser.first_name}
+                            </Text>
+                        </View>
+
+                        {loading ? <>
+                            <ActivityIndicator style={{ flex: 1 }} />
+                        </> : <>
+                            <FlatList
+                                data={messages}
+                                keyExtractor={(item) => item.id}
+                                renderItem={({ item }) => (
+                                    <View style={[styles.msg, {
+                                        alignSelf: item.senderId === senderId ? 'flex-end' : 'flex-start',
+                                        backgroundColor: item.senderId === senderId ? '#DCF8C6' : '#FFF',
+                                    }]}>
+                                        <Text style={{ fontSize: 15, color: '#000', flexWrap: 'wrap' }}>
+                                            {item.text}
+                                        </Text>
+                                    </View>
+                                )}
+                                contentContainerStyle={{ padding: 10 }}
+                                style={{ flex: 1 }}
+                                inverted
+                                showsVerticalScrollIndicator={false}
+                            />
+                        </>}
+
+                        <View style={styles.inputContainer}>
+                            <TextInput
+                                value={textSend}
+                                onChangeText={setTextSend}
+                                placeholder="Nhập tin nhắn..."
+                                style={styles.textInput}
+                            />
+                            <TouchableOpacity onPress={handleSend}>
+                                <Icon source="send" size={30} color="#1e1e1e" />
+                            </TouchableOpacity>
+                        </View>
+                    </KeyboardAvoidingView>
+                </View>
+
+            </> : <>
+            </>}
+
         </SafeAreaView>
     )
 }

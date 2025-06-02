@@ -161,7 +161,7 @@ function Home() {
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <SafeAreaView style={{ paddingBottom: 20 }}>
-                <HeaderHome value={searchQuery} onChangeText={setSearchQuery} />
+                <HeaderHome value={searchQuery} onChangeText={setSearchQuery} showBackButton={false} />
 
                 <TouchableOpacity
                     style={[styles.filterButton]}
@@ -187,7 +187,7 @@ function Home() {
                         onEndReached={onLoadMore}
                         ListHeaderComponent={headerCategories}
                         renderItem={({ item }) => (
-                            <TouchableOpacity key={item.id} style={{ width: '50%', padding: 5 }} onPress={() => nav.navigate('productDetail', { "productId": item.id })}>
+                            <TouchableOpacity style={{ width: '50%', padding: 5 }} onPress={() => nav.navigate('productDetail', { productId: item.id, productLogo: item.logo, prevScreen: { previousRoute: "homeMain" } })}>
                                 <ProductCard product={item} />
                             </TouchableOpacity>
                         )}
@@ -258,7 +258,7 @@ function Home() {
 
 const styles = StyleSheet.create({
     container: {
-        padding: 5,
+        padding: 1,
         paddingBottom: 0
     },
     baseText: {

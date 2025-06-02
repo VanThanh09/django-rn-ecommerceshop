@@ -1,13 +1,14 @@
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Button, HelperText, Icon, TextInput } from "react-native-paper";
+import { Button, HelperText, IconButton, TextInput } from "react-native-paper";
 import MyStyles from "../../styles/MyStyles";
 import Apis, { authApis, endpoints } from "../../configs/Apis";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { MyDispatchContext } from "../../configs/MyContext";
+import { CartContext, MyDispatchContext } from "../../configs/MyContext";
+import { CommonActions } from '@react-navigation/native';
 
-const Login = () => {
+const Login = ({ route }) => {
     const info = [{
         label: "Tên đăng nhập",
         field: "username",
@@ -21,7 +22,6 @@ const Login = () => {
         autoCapitalize: "none"
     }];
 
-
     const [user, setUser] = useState({});
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -29,6 +29,49 @@ const Login = () => {
     const nav = useNavigation();
     const dispatch = useContext(MyDispatchContext);
 
+    const { cartDispatch } = useContext(CartContext);
+
+    useEffect(() => {
+        // Khi route, nav thay đổi thì useEffect sẽ tạo call back với closure mới => các biến sẽ được truy xuất mới nhấtAdd commentMore actions
+        const { prevScreen } = route.params || {}
+
+        if (prevScreen) {
+            const handleGoBack = () => {
+                if (prevScreen.nestedScreen) {
+                    nav.navigate(prevScreen.nestedScreen, { screen: prevScreen.previousRoute, params: { ...prevScreen.prevRouteParams } })
+                }
+                else {
+                    nav.navigate(prevScreen.previousRoute, { ...prevScreen.prevRouteParams })
+                }
+
+                // Sau khi quay trở về thì xóa trang login vừa rồi đi
+                nav.dispatch(state => {
+                    // Case 1: Login is the only route → replace entire stack
+                    if (state.routes.length === 1 && state.routes[0].name === 'login') {
+                        return CommonActions.reset({
+                            index: 0,
+                            routes: [{ name: 'profileMain' }], // Fallback to index screen (màn hình Tài khoản)
+                        });
+                    }
+
+                    // Case 2: Have something exist in account stack
+                    const routes = state.routes.filter(r => r.name !== 'login');
+                    return CommonActions.reset({
+                        ...state,
+                        routes,
+                        index: routes.length - 1, // Prevent index overflow, active the last screen visitedAdd commentMore actions
+                    });
+                })
+            }
+
+            nav.setOptions({
+                headerLeft: () => (
+                    <IconButton icon="arrow-left" size={25} iconColor="#333" onPress={handleGoBack} style={{ marginLeft: -12 }} />
+                )
+            });
+        }
+
+    }, [route, nav]);
 
     const setState = (value, field) => {
         setUser({ ...user, [field]: value });
@@ -50,7 +93,6 @@ const Login = () => {
     const login = async () => {
         if (validate()) {
             try {
-
                 setLoading(true);
                 setMsg(null);
 
@@ -69,14 +111,51 @@ const Login = () => {
 
                 const token = await AsyncStorage.getItem('token');
                 let u = await authApis(token).get(endpoints['current_user']);
-                // console.info(u.data)
 
                 dispatch({
                     "type": "login",
                     "payload": u.data
                 });
 
-                nav.navigate('profileMain');
+                // cart- infomation
+                let cart = await authApis(token).get(endpoints.cart_basic_info);
+
+                cartDispatch({ type: 'user_logged_in', payload: cart.data })
+
+                //// /// const { nestedScreen, previousRoute, prevRouteParams } = route.params || {}
+                const { screenAfterLogin } = route.params || {}
+
+                // Login thành công
+                if (screenAfterLogin) {
+                    if (screenAfterLogin.nestedScreen) {
+                        nav.navigate(screenAfterLogin.nestedScreen, { screen: screenAfterLogin.route, params: { ...screenAfterLogin.params } })
+                    } else {
+                        nav.navigate(screenAfterLogin.previousRoute, { ...screenAfterLogin.params })
+                    }
+
+                    // Reset account stack (Mystack) to active the Profile screen wipe the screen login in the history state
+                    nav.dispatch(state => {
+                        // Case 1: Login is the only route → replace entire stack
+                        if (state.routes.length === 1 && state.routes[0].name === 'login') {
+                            return CommonActions.reset({
+                                index: 0,
+                                routes: [{ name: 'index' }], // Fallback to index screen
+                            });
+                        }
+
+                        // Case 2: Have something exist in account stack
+                        const routes = state.routes.filter(r => r.name !== 'login');
+                        return CommonActions.reset({
+                            ...state,
+                            routes,
+                            index: routes.length - 1, // Prevent index overflow, active the last screen visited
+                        });
+                    })
+                }
+                else
+                    nav.navigate('account', {
+                        screen: 'profileMain',
+                    })
             } catch (ex) {
                 if (ex.response && ex.response.status === 400) {
                     setMsg("Sai tên đăng nhập hoặc mật khẩu");

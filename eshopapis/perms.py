@@ -73,3 +73,8 @@ class CommentSellerCreatePermission(IsSeller):
 class CommentSellerOwnerPermission(permissions.IsAuthenticated):
     def has_object_permission(self, request, view, obj):
         return  super().has_permission(request,view) and obj.seller == request.user
+
+
+class UpdateProductPermission(permissions.IsAuthenticated):
+    def has_object_permission(self, request, view, obj):
+        return super().has_permission(request,view) and obj.store.owner == request.user

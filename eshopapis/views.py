@@ -1,5 +1,13 @@
 import base64
 import json
+from datetime import timedelta
+
+import requests
+from cloudinary import CloudinaryResource
+from django.db.models.functions import TruncDay, TruncMonth
+from django.http import JsonResponse
+from django.utils.timezone import now
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, generics, status, parsers, permissions
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -24,6 +32,50 @@ def delete_image_from_cloudinary(image_url):
         print(f"Không thể xóa ảnh: {e}")
 
 
+@csrf_exempt
+def revenue_chart_data(request):
+    """API trả về dữ liệu doanh thu theo ngày"""
+
+    days = int(request.GET.get('days', 7))
+
+    start_date = now().date() - timedelta(days=days)
+
+    if days<151:
+        orders = (
+            Order.objects
+            .filter(paid=True, created_date__gte=start_date)
+            .annotate(day=TruncDay('created_date'))
+            .values('day')
+            .annotate(total=Sum('total_price'))
+            .order_by('day')
+        )
+        chart_data = [
+            {
+                "date": item["day"].strftime('%d/%m'),
+                "revenue": item["total"]
+            }
+            for item in orders
+        ]
+    else:
+        orders = (
+            Order.objects
+            .filter(paid=True, created_date__gte=start_date)
+            .annotate(month=TruncMonth('created_date'))
+            .values('month')
+            .annotate(total=Sum('total_price'))
+            .order_by('month')
+        )
+        chart_data = [
+            {
+                "date": item["month"].strftime('%Y-%m'),
+                "revenue": item["total"]
+            }
+            for item in orders
+        ]
+
+    return JsonResponse(chart_data, safe=False)
+
+
 # Create new user
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     queryset = User.objects.filter(is_active=True).all()
@@ -34,6 +86,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     def get_current_user(self, request):
         return Response(serializers.UserSerializer(request.user).data)
 
+    # create cart with user
     def perform_create(self, serializer):
         user = serializer.save()
         Cart.objects.create(user=user, total_quantity=0)
@@ -230,12 +283,98 @@ class ProductCreateViewSet(viewsets.ViewSet, generics.CreateAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+class ProductUpdateViewSet(viewsets.ViewSet, generics.UpdateAPIView):
+    queryset = Product.objects.all()
+    serializer_class = serializers.ProductCreateSerializer
+    permission_classes = [perms.UpdateProductPermission]
+    parser_classes = [parsers.MultiPartParser]
+
+    def update(self, request, *args, **kwargs):
+        product = self.get_object()
+
+        data = request.data.copy()
+
+        # Chuyển category_set từ chuỗi '2,3,4' => [2, 3, 4]
+        category_raw = data.get("category_set")
+        if category_raw:
+            if isinstance(category_raw, str):
+                try:
+                    data.setlist("category_set", [int(i) for i in category_raw.split(",")])
+                except ValueError:
+                    return Response({"detail": "category_set should be list of integer."}, status=400)
+
+        # Giữ các logo còn sử dụng
+        keep_logo_urls = []
+        index = 0
+        while True:
+            prefix = f"variants[{index}]"
+            price = request.data.get(f"{prefix}[price]")
+            quantity = request.data.get(f"{prefix}[quantity]")
+            logo_url = request.data.get(f"{prefix}[logo_url]")
+
+            if not price and not quantity:
+                break
+            if logo_url:
+                keep_logo_urls.append(logo_url)
+            index += 1
+
+        # Xóa các logo không cần
+        for v in product.productvariant_set.all():
+            if v.logo and v.logo.url not in keep_logo_urls:
+                delete_image_from_cloudinary(v.logo.url)
+
+        # Lưu thông tin cơ bản
+        serializer = self.get_serializer(product, data=data, partial=True)  # bọc dữ liệu vào serializer để kiểm tra
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        # Xóa hết biến thể
+        product.productvariant_set.all().delete()
+
+        # Thêm biến thể mới lại
+        index = 0
+        while True:
+            prefix = f"variants[{index}]"
+            price = request.data.get(f"{prefix}[price]")
+            quantity = request.data.get(f"{prefix}[quantity]")
+            attributes_json = request.data.get(f"{prefix}[attributes]")
+            logo_file = request.FILES.get(f"{prefix}[logo]")
+            logo_url = request.data.get(f"{prefix}[logo_url]")
+
+            if not price and not quantity:
+                break  # Không còn variant nào nữa
+
+            attributes = []
+            attrs = json.loads(attributes_json)  # lấy từng attribute value ra để lưu
+            for attr in attrs:
+                attr_obj, _ = Attribute.objects.get_or_create(
+                    name=attr["attribute_name"])
+                attr_value, _ = AttributeValue.objects.get_or_create(
+                    value=attr["value"],
+                    attribute=attr_obj,
+                )
+                attributes.append(attr_value.id)
+
+            if not logo_file and logo_url:
+                logo_file = f"image/upload/{logo_url.split('image/upload/')[1].strip()}"
+
+            product_variant = ProductVariant.objects.create(
+                quantity=quantity,
+                price=price,
+                logo=logo_file,
+                product=product
+            )
+            product_variant.attributes.set(attributes)
+            index += 1
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 # Return a store detail
 class StoreDetailViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Store.objects.filter(active=True)
     serializer_class = serializers.StoreSerializer
     pagination_class = paginators.ProductPage
-    permission_classes = [perms.IsSeller]
 
     # Return all product of a store
     @action(methods=['get'], detail=False, url_path='products')
@@ -363,23 +502,24 @@ class ActionVerificationViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
     Get all product in the cart in format of basic information
 """
 def change_cart_detail_active(cart):
-    deactive_products = cart.products.filter(active=False)
-    for p in deactive_products:
-        cart_detail = cart.cartdetail_set.get(product_variant=p)
-        cart_detail.active = False
-        cart_detail.save()
+    list_cart_detail = CartDetail.objects.filter(cart=cart)
+    for c in list_cart_detail:
+        c.active = c.product_variant.active
+        c.save()
 
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def get_products_in_cart(request):
     cart = Cart.objects.get(user=request.user)
-    if cart.total_quantity == 0:
-        return Response(data={'msg': 'No product in cart'}, status=status.HTTP_200_OK)
+
+    # if cart.total_quantity == 0:
+    #     return Response(data={'msg': 'No product in cart'}, status=status.HTTP_200_OK)
     # Update if product_variant still active or not
-    change_cart_detail_active(cart=cart)
-    # serializer = serializers.CartSerializer(cart)
-    return Response(data={'total_quantity': cart.total_quantity}, status=status.HTTP_200_OK)
+
+    serializer = serializers.CartSerializer(cart)
+    return Response(data=serializer.data, status=status.HTTP_200_OK)
+    #return Response(data={'total_quantity': cart.total_quantity}, status=status.HTTP_200_OK)
 
 
 """
@@ -517,6 +657,30 @@ class CartDetailViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.Updat
         instance.cart.total_quantity -= 1
         instance.cart.save()
         instance.delete()
+
+
+# Create multiple cart detailAdd commentMore actions
+
+@api_view(['POST'])
+@permission_classes([perms.OwnerCartDetailPermission])
+def create_mul_cartdetail(request):
+    product_variants = request.data.pop('product_variants')
+    cart = request.user.cart
+    if cart.id != request.data.get('cart_id'):
+        return Response(data={"msg": "This is not your cart!!!"}, status=status.HTTP_403_FORBIDDEN)
+
+    if product_variants:
+        for variant in product_variants:
+            cartDetail, created = CartDetail.objects.get_or_create(cart=cart,product_variant_id=variant.get('id'))
+            cartDetail.quantity += variant.get('quantity')
+            if created:
+                cart.total_quantity += 1
+            cartDetail.save()
+            cart.save()
+
+    serializer = serializers.CartSerializer(cart)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
 # Done cart/ , cart-basic-info, checkout
 # Create order, orderDetail for each shop, after that remove all the from cart

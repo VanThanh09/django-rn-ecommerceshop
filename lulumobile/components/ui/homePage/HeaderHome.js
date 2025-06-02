@@ -1,46 +1,137 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { StyleSheet, Text, View, SafeAreaView, Pressable } from "react-native"
 import MyStyles from "../../../styles/MyStyles"
-import { Button, Icon, IconButton, Searchbar } from "react-native-paper"
-import { useState } from "react"
-import { useNavigation } from "@react-navigation/native"
+import { IconButton, Searchbar } from "react-native-paper"
+import { useContext } from "react"
+import { MyUserContext, CartContext } from "../../../configs/MyContext"
+import { useNavigation, useRoute } from "@react-navigation/native"
 
-const HeaderHome = ({ value, onChangeText }) => {
-    const [isSearching, setIsSearching] = useState(false);
+const HeaderHome = ({ value, onChangeText, showBackButton = false, showHomeButton = false }) => {
     const nav = useNavigation();
+    user = useContext(MyUserContext)
+    const { cart } = useContext(CartContext);
+
+    const route = useRoute()
+    const nestedScreen = nav.getParent()?.getState()?.routeNames[nav.getParent()?.getState().index];
+
+    const navigateLoginPage = () => {
+        nav.navigate('account', {
+            screen: 'login', params: {
+                prevScreen: {
+                    nestedScreen: nestedScreen, previousRoute: route.name,
+                    prevRouteParams: route.params
+                },
+                // Màn hình muốn chuyển tới sau login
+                screenAfterLogin: {
+                    nestedScreen: "home",
+                    route: "cartPage",
+                    // Params để quay trở về
+                    params: {
+                        prevScreen: {
+                            nestedScreen: nestedScreen, previousRoute: route.name,
+                            prevRouteParams: route.params
+                        }
+                    }
+                }
+            }
+        })
+    }
+
+    const handleOnPressCart = () => {
+        if (user === null) {
+            navigateLoginPage('home', 'cartPage')
+        }
+        else {
+            nav.navigate('cartPage', {
+                prevScreen: {
+                    nestedScreen: nestedScreen, previousRoute: route.name,
+                    prevRouteParams: route.params
+                }
+            })
+        }
+    }
+
+    const handleGoBack = () => {
+        const { prevScreen } = route.params
+        if (prevScreen.previousRoute === "homeMain") {
+            nav.goBack();
+        }
+        if (prevScreen) {
+            if (prevScreen.nestedScreen) {
+                nav.navigate(prevScreen.nestedScreen, {
+                    screen: prevScreen.previousRoute,
+                    params: {
+                        ...prevScreen.prevRouteParams
+                    }
+                })
+            }
+            else {
+                nav.navigate(prevScreen.previousRoute, { ...prevScreen.prevRouteParams })
+            }
+        }
+        else {
+            nav.navigate("homeMain");
+        }
+    }
 
     return (
-        <View style={MyStyles.bgPrimaryColor}>
-            <View style={styles.containerRow}>
-                <View style={[styles.left]}>
-                    <Searchbar
-                        placeholder="Search"
-                        style={styles.searchbar}
-                        inputStyle={styles.input}
-                        iconColor="#888"
-                        onChangeText={onChangeText}
-                        // onFocus={() => setIsSearching(true)}
-                        // onBlur={() => setIsSearching(false)}
-                        value={value}
-                    />
-                </View>
-                <View style={styles.right}>
-                    <IconButton
-                        icon="cart-outline"
-                        size={25}
-                        onPress={() => console.log('Pressed')}
-                        iconColor="#fff"
-                    />
-                    <IconButton
-                        icon="chat-processing-outline"
-                        size={25}
-                        onPress={() => nav.navigate("account", {
-                            screen: "conversations",
-                        })}
-                        iconColor="#fff"
-                    />
+        <SafeAreaView>
+            <View style={[MyStyles.bgPrimaryColor]}>
+                <View style={styles.containerRow}>
+                    <View style={[styles.left]}>
+                        {
+                            showBackButton ? (
+                                <View style={{ marginLeft: -10, width: '10%', marginRight: 8 }}>
+                                    <IconButton icon="arrow-left" size={25} iconColor="#fff" onPress={handleGoBack} />
+                                </View>) : <></>
+                        }
+                        <Searchbar
+                            placeholder="Search"
+                            style={styles.searchbar}
+                            inputStyle={styles.input}
+                            iconColor="#888"
+                            onChangeText={onChangeText}
+                            value={value}
+                        />
+                    </View>
+                    <View style={[styles.right]}>
+                        <View style={styles.cartContainer}>
+                            <Pressable onPress={() => { handleOnPressCart() }}>
+                                <View>
+                                    <IconButton
+                                        icon="cart-outline"
+                                        size={25}
+                                        iconColor="#fff"
+                                    />
+                                    {cart?.total_quantity > 0 && (
+                                        <View style={styles.badge}>
+                                            <Text style={styles.badgeText}>{cart.total_quantity}</Text>
+                                        </View>
+                                    )}
+                                </View>
+                            </Pressable>
+                        </View>
+
+                        {showHomeButton ? (
+                            <View>
+                                <IconButton icon="home-outline" size={25} onPress={() => nav.navigate("homeMain")} iconColor="#fff" />
+                            </View>
+                        ) : (
+                            <View>
+                                <IconButton
+                                    icon="chat-processing-outline"
+                                    size={25}
+                                    onPress={() => nav.navigate("account", {
+                                        screen: "conversations",
+                                    })}
+                                    iconColor="#fff"
+                                    style={{ width: 50 }}
+                                />
+                            </View>
+                        )}
+                    </View>
                 </View>
             </View>
-        </View>
+        </SafeAreaView>
     )
 }
 
@@ -57,15 +148,7 @@ const styles = StyleSheet.create({
     },
     right: {
         flexDirection: "row",
-    },
-    button: {
-        backgroundColor: '#fa5230',
-        borderRadius: 3,
-        borderWidth: 1,
-        borderColor: '#fff'
-    },
-    buttonText: {
-        color: '#fff',
+        alignItems: 'center',
     },
     searchbar: {
         backgroundColor: 'white',
@@ -77,10 +160,30 @@ const styles = StyleSheet.create({
         borderColor: '#ddd',
         height: 40,
     },
-
     input: {
         fontSize: 14,
         marginTop: -8,
     },
-
+    cartContainer: {
+        width: 50,
+        height: 56,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    badge: {
+        position: "absolute",
+        right: 3,
+        top: 3.75,
+        backgroundColor: "#fff",
+        borderRadius: 10,
+        width: 20,
+        height: 20,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    badgeText: {
+        color: "#ee4d2d",
+        fontSize: 10,
+        fontWeight: "bold",
+    },
 })

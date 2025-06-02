@@ -8,7 +8,6 @@ export const getChatId = (u1, u2) => [u1, u2].sort((a, b) => a - b).join('_');
 //     ->1_2 (document ID) 
 //         ->users: [1, 2]
 //         ->lastMsg: "Hi"
-//         ->updateAt: timestamp
 //         ->messages (subcollection)
 //             ->msg
 //             ->msg

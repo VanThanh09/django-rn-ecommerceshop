@@ -6,7 +6,7 @@ import Register from './components/user/Register';
 import Login from './components/user/Login';
 import { useContext, useReducer } from 'react';
 import MyUserReducers from './reducers/MyUserReducers';
-import { MyDispatchContext, MyUserContext } from './configs/MyContext';
+import { CartContext, MyDispatchContext, MyUserContext } from './configs/MyContext';
 import { Icon } from 'react-native-paper';
 import Profile from './components/user/Profile';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -18,6 +18,9 @@ import StoreRequests from './components/employee/StoreRequsets';
 import RequestDetail from './components/employee/RequestDetail';
 import Conversations from './components/chat/Conversations';
 import ChatScreen from './components/chat/ChatScreen';
+import UpdateProduct from './components/store/UpdateProduct';
+import CartReducer from './reducers/CartReducer';
+import Cart from './components/cart/Cart';
 
 const ProfileStack = createNativeStackNavigator();
 function MyProfileStack() {
@@ -38,7 +41,8 @@ function MyHomeStack() {
   return (
     <HomeStack.Navigator>
       <HomeStack.Screen name="homeMain" component={Home} options={{ headerShown: false }} />
-      <HomeStack.Screen name="productDetail" component={ProductDetail} options={{ title: "" }} />
+      <HomeStack.Screen name="productDetail" component={ProductDetail} options={{ headerShown: false }} />
+      <HomeStack.Screen name="cartPage" component={Cart} />
     </HomeStack.Navigator>
   )
 }
@@ -49,6 +53,7 @@ function MyStoreStack() {
     <StoreStack.Navigator>
       <StoreStack.Screen name="storeMain" component={Store} options={{ title: "Cửa hàng của bạn", headerShown: false }} />
       <StoreStack.Screen name='addProduct' component={AddProduct} options={{ title: "Thêm sản phẩm" }} />
+      <StoreStack.Screen name="updateProduct" component={UpdateProduct} options={{ title: "Sửa sản phẩm" }} />
     </StoreStack.Navigator>
   )
 }
@@ -68,8 +73,27 @@ function MyTabs() {
   const user = useContext(MyUserContext);
   return (
     <Tab.Navigator screenOptions={{ headerShown: false, tabBarStyle: styles.tabBarStyle, tabBarHideOnKeyboard: true }}>
-      <Tab.Screen name="home" component={MyHomeStack} options={{ tabBarIcon: () => <Icon size={30} source="home" color="#797979" />, title: "Trang chủ" }} />
-
+      <Tab.Screen name="home"
+        component={MyHomeStack}
+        options={({ route }) => {
+          const tabHidden = ['productDetail', 'cartPage'];
+          const routeName = getFocusedRouteNameFromRoute(route);
+          return {
+            tabBarIcon: () => <Icon size={30} source="home" color="#797979" />,
+            tabBarStyle: tabHidden.includes(routeName) ? { display: 'none' } : styles.tabBarStyle
+          };
+        }}
+        listeners={({ navigation }) => ({
+          tabPress: e => {
+            // Ngăn mặc định
+            e.preventDefault();
+            // Reset lại stack navigator để luôn quay về "index"
+            navigation.navigate('home', {
+              screen: 'homeMain',
+            });
+          },
+        })}
+      />
 
       {user !== null && user.user_role === 'SE' && <>
         <Tab.Screen name="store" component={MyStoreStack} options={{ tabBarIcon: () => <Icon size={30} source="store" color="#797979" />, title: "Cửa hàng" }} />
@@ -91,7 +115,7 @@ function MyTabs() {
             title: "Người dùng",
             tabBarStyle: tabHidden.includes(routeName)
               ? { display: 'none' }
-              : styles.tabBarStyle
+              : styles.tabBarStyle,
           };
         }}
 
@@ -112,14 +136,17 @@ function MyTabs() {
 }
 
 const App = () => {
-  const [user, dispatch] = useReducer(MyUserReducers, null)
+  const [user, dispatch] = useReducer(MyUserReducers, null);
+  const [cart, cartDispatch] = useReducer(CartReducer, null);
 
   return (
     <MyUserContext.Provider value={user}>
       <MyDispatchContext.Provider value={dispatch}>
-        <NavigationContainer>
-          <MyTabs />
-        </NavigationContainer>
+        <CartContext.Provider value={{ cart, cartDispatch }}>
+          <NavigationContainer>
+            <MyTabs />
+          </NavigationContainer>
+        </CartContext.Provider>
       </MyDispatchContext.Provider>
     </MyUserContext.Provider>
   );

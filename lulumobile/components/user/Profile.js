@@ -1,7 +1,7 @@
 import { useContext, useState } from "react";
 import { Alert, Platform, ScrollView, StatusBar, StyleSheet, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { MyDispatchContext, MyUserContext } from "../../configs/MyContext";
+import { MyDispatchContext, MyUserContext, CartContext } from "../../configs/MyContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import HeaderProfile from "../ui/profilePage/HeaderProfile";
 import FeatureButton from "../ui/profilePage/FeatureButton";
@@ -18,6 +18,8 @@ const Profile = () => {
         color: "#3a5998"
     }]
 
+    const { cartDispatch } = useContext(CartContext)
+
     const logout = async () => {
         if (!loading) {
             try {
@@ -28,7 +30,13 @@ const Profile = () => {
                     type: "logout"
                 });
 
-                nav.navigate("home")
+                cartDispatch({
+                    type: "user_logged_out"
+                })
+
+                nav.navigate("home", {
+                    screen: "homeMain"
+                })
             } catch (ex) {
                 console.error(ex)
             } finally {

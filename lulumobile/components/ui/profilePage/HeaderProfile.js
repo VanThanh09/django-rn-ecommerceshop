@@ -2,34 +2,77 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
 import MyStyles from "../../../styles/MyStyles"
 import { Button, Icon, IconButton } from "react-native-paper"
 import { useContext } from "react"
-import { MyUserContext } from "../../../configs/MyContext"
+import { CartContext, MyUserContext } from "../../../configs/MyContext"
 import { useNavigation } from "@react-navigation/native"
 
 const HeaderProfile = ({ onLoginPress, onRegisterPress, onLogoutPress }) => {
     const user = useContext(MyUserContext);
     const nav = useNavigation();
+    const { cart } = useContext(CartContext);
+
+    const handleOnpressCart = () => {
+        if (user === null) {
+            nav.navigate('login', {
+                prevScreen: {
+                    nestedScreen: "account", previousRoute: "index",
+                    prevRouteParams: undefined
+                },
+                // Màn hình muốn chuyển tới sau login
+                screenAfterLogin: {
+                    nestedScreen: "home",
+                    route: "cartPage",
+                    // Params use for cart page going back Profile
+                    params: {
+                        prevScreen: {
+                            nestedScreen: "account",
+                            previousRoute: "index",
+                        }
+                    }
+                }
+            })
+        }
+        else {
+            nav.navigate('home', {
+                screen: 'cartPage',
+                params: {
+                    prevScreen: {
+                        nestedScreen: "account",
+                        previousRoute: "index",
+                    }
+                }
+            })
+        }
+    }
 
     return (
-        <View style={MyStyles.bgPrimaryColor}>
+        <View style={[MyStyles.bgPrimaryColor]}>
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-                <View style={styles.right}>
+                <View style={[styles.right]}>
                     <IconButton
                         icon="cog"
                         size={25}
                         onPress={() => console.log('Pressed')}
                         iconColor="#fff"
                     />
-                    <IconButton
-                        icon="cart-outline"
-                        size={25}
-                        onPress={() => console.log('Pressed')}
-                        iconColor="#fff"
-                    />
+                    <View style={styles.cartContainer}>
+                        <IconButton
+                            icon="cart-outline"
+                            size={25}
+                            onPress={() => handleOnpressCart()}
+                            iconColor="#fff"
+                        />
+                        {cart?.total_quantity > 0 && (
+                            <View style={styles.badge}>
+                                <Text style={styles.badgeText}>{cart.total_quantity}</Text>
+                            </View>
+                        )}
+                    </View>
                     <IconButton
                         icon="chat-processing-outline"
                         size={25}
                         onPress={() => nav.navigate("conversations")}
                         iconColor="#fff"
+                        style={{ width: 50 }}
                     />
                 </View>
             </View>
@@ -99,6 +142,7 @@ const styles = StyleSheet.create({
     },
     right: {
         flexDirection: "row",
+        alignItems: 'center',
     },
     button: {
         backgroundColor: '#fa5230',
@@ -126,5 +170,27 @@ const styles = StyleSheet.create({
     },
     titleWrapper: {
         justifyContent: 'center'
-    }
+    },
+    badge: {
+        position: "absolute",
+        right: 3,
+        top: 3.75,
+        backgroundColor: "#fff",
+        borderRadius: 10,
+        width: 20,
+        height: 20,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    badgeText: {
+        color: "#ee4d2d",
+        fontSize: 10,
+        fontWeight: "bold",
+    },
+    cartContainer: {
+        width: 50,
+        height: 56,
+        justifyContent: "center",
+        alignItems: "center",
+    },
 })

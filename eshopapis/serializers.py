@@ -5,8 +5,6 @@ from eshopapis.models import Product, Store, User, ProductVariant, AttributeValu
 
 # StoreSerializer trả ra thông tin cửa hàng
 class StoreSerializer(serializers.ModelSerializer):
-    owner = serializers.CharField(source='owner.username')
-
     class Meta:
         model = Store
         fields = ['id', 'name', 'description', 'owner', 'logo']
@@ -91,7 +89,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductVariant
-        fields = ['id', 'logo', 'quantity', 'price', 'attributes']
+        fields = ['id', 'logo', 'quantity', 'price', 'active', 'attributes']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -130,14 +128,18 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         return {key: list(values) for key, values in attributes.items()}
 
     def get_price(self, obj):
-        price = [variant.price for variant in obj.productvariant_set.all()]
-        return str("{:,.0f}".format(min(price)))
+        variant = obj.productvariant_set.order_by('price').first()
+
+        if variant and variant.price is not None:
+            min_price = variant.price
+            return str("{:,.0f}".format(min_price))
+
+        return "0"
 
     def get_total_quantity(self, obj):
         total = 0
         for variant in obj.productvariant_set.all():
             total += variant.quantity
-            print(total)
         return total
 
 
@@ -167,8 +169,13 @@ class ProductSerializer(serializers.ModelSerializer):
         return data
 
     def get_price(self, obj):
-        min_price = obj.productvariant_set.order_by('price').first().price
-        return str("{:,.0f}".format(min_price))
+        variant  = obj.productvariant_set.order_by('price').first()
+
+        if variant and variant.price is not None:
+            min_price = variant.price
+            return str("{:,.0f}".format(min_price))
+
+        return "0"
 
 
 # ProductSerializer thông tin chờ xác thực seller
@@ -198,9 +205,11 @@ class ProductCreateSerializer(serializers.ModelSerializer):
 class ProductVariantWithProductNameSerializer(serializers.ModelSerializer):
     attributes = AttributeValueSerializer(many=True)
     product_name = serializers.StringRelatedField(source="product.name")
+    stock_quantity = serializers.IntegerField(source="quantity")
+
     class Meta:
         model=ProductVariant
-        fields=['id', 'product_name' ,'logo',  'price', 'attributes']
+        fields = ['id', 'product_name', 'logo', 'price', 'attributes', 'stock_quantity']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -347,8 +356,16 @@ class CartProductVariantSerializer(serializers.ModelSerializer):
         return obj.product_variant.price * obj.quantity
 
 
+class CartDetailGetProductsForCart(serializers.ModelSerializer):
+    variant_id = serializers.IntegerField(source='product_variant.id', read_only=True)
+    class Meta:
+        model = CartDetail
+        fields = ['variant_id', 'quantity']
+
+
 class CartSerializer(serializers.ModelSerializer):
-    product_variants = CartBasicProductVariantSerializer(many=True,source='products',read_only=True)
+    product_variants = CartDetailGetProductsForCart(source="cartdetail_set", many=True, read_only=True)
+
     class Meta:
         model = Cart
         fields = ['id','product_variants','total_quantity']
@@ -358,6 +375,8 @@ class CartSerializer(serializers.ModelSerializer):
 # CartDetailSerializer
 class CartDetailSerializer(serializers.ModelSerializer):
     cart_total_quantity = serializers.IntegerField(source='cart.total_quantity', read_only=True)
+
+
     class Meta:
         model = CartDetail
         fields = ['id','product_variant', 'quantity','active','cart','cart_total_quantity']
@@ -479,7 +498,7 @@ class StoreRatingSerializer(serializers.ModelSerializer):
 class StoreProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Store
-        fields = ['id','name','logo','store_address']
+        fields = ['id','name','logo','store_address', 'owner']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

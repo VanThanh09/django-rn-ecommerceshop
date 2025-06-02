@@ -8,11 +8,11 @@ import HeaderStore from "../ui/storePage/HeaderStore"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { authApis, endpoints } from "../../configs/Apis"
 
-const { width } = Dimensions.get('window');
 
 const Store = () => {
     const nav = useNavigation();
     const user = useContext(MyUserContext);
+    const [refreshing, setRefreshing] = useState(false);
 
     const [store, setStore] = useState();
     const [myProducts, setMyProducts] = useState([]);
@@ -55,13 +55,8 @@ const Store = () => {
         }
     }
 
-    const sellerFeatures = [{
-        label: "Thêm sản phẩm",
-        icon: "plus-box",
-        color: "#3a5998"
-    }]
-
     const handleAddProduct = () => (nav.navigate('addProduct'));
+    const handleUpdateProduct = () => (nav.navigate('updateProduct'));
 
     useEffect(() => {
         loadStore();
@@ -76,16 +71,26 @@ const Store = () => {
         loadProducts();
     }, [page])
 
+    const sellerFeatures = [{
+        label: "Thêm sản phẩm",
+        icon: "plus-box",
+        color: "#3a5998",
+        handle: handleAddProduct,
+    }]
+
     const ProductItem = ({ item }) => (
         <View style={styles.info}>
             <View>
                 <Image source={{ uri: item.logo }} style={styles.image} />
             </View>
-            <View style={{ marginLeft: 10, justifyContent: 'center' }}>
+            <View style={{ marginHorizontal: 10, justifyContent: 'center', flex: 1 }}>
                 <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.description}>{item.description}</Text>
+                <Text numberOfLines={2} ellipsizeMode="tail" style={styles.description}>{item.description}</Text>
                 <Text style={styles.price}>{item.price}đ</Text>
             </View>
+            <TouchableOpacity style={[styles.editButton]} onPress={() => nav.navigate('updateProduct', { "productId": item.id })}>
+                <Text style={styles.editText}>Sửa</Text>
+            </TouchableOpacity>
         </View>
     );
 
@@ -103,11 +108,12 @@ const Store = () => {
                                 label={i.label}
                                 icon={i.icon}
                                 color={i.color}
-                                onPress={handleAddProduct}
+                                onPress={i.handle}
                                 key={i.label}
                             />
                         ))}
                     </View>
+
 
                     {/* Tiêu đề */}
                     <View style={styles.title}>
@@ -120,6 +126,11 @@ const Store = () => {
                         keyExtractor={item => item.id.toString()}
                         numColumns={1}
                         showsVerticalScrollIndicator={false}
+                        onRefresh={() => nav.reset({
+                            index: 0,
+                            routes: [{ name: 'storeMain' }],
+                        })}
+                        refreshing={refreshing}
                         onEndReached={loadMore}
                         onEndReachedThreshold={0.2}
                         ListFooterComponent={loading && <ActivityIndicator />}
@@ -138,13 +149,13 @@ const Store = () => {
 const styles = StyleSheet.create({
     viewContainer: {
         backgroundColor: '#fff',
-        marginTop: 10,
+        marginTop: 5,
     },
     title: {
         backgroundColor: '#fff',
         paddingVertical: 10,
         paddingHorizontal: 16,
-        marginTop: 5,
+        marginTop: 3,
     },
     titleText: {
         fontSize: 18,
@@ -183,6 +194,20 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 14,
         color: '#e91e63',
+    },
+    editButton: {
+        position: 'absolute',
+        borderWidth: 1,
+        borderColor: '#fa5230',
+        top: 5,
+        right: 8,
+        paddingVertical: 4,
+        paddingHorizontal: 12,
+        borderRadius: 4,
+    },
+    editText: {
+        color: '#fa5230',
+        fontSize: 12,
     },
 })
 
