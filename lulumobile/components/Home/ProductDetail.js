@@ -54,11 +54,20 @@ const ProductDetail = ({ route }) => {
     const [index, setIndex] = useState(-1)
     const [comments, setComments] = useState(null)
     const [pendingAction, setPendingAction] = useState(null)
-    const pathOptions = useRef([])
 
     const [openModalCart, setOpenModalCart] = useState(false)
     const [openModalBuyNow, setOpenModalBuyNow] = useState(false)
     const [refreshing, setRefreshing] = useState(false)
+
+    //console.log("from productDetail  ",navigation.getState())
+    useEffect(() => {
+        console.log("pro mounted")
+
+        return () => {
+            console.log("pro unmounted")
+        }
+    },[])
+
 
     const addPendingAction = (actionType, payload) => {
         const currentAction = {
@@ -166,6 +175,7 @@ const ProductDetail = ({ route }) => {
     }, [])
 
     /////////////////////////////////////////////////////////////// Modal  ///////////////////////////////////////////////////////////
+    const pathOptions = useRef([])
     const mainAttr = useRef(null)
     const mainAttrDisable = useRef(null)
     // build selected

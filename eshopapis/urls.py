@@ -26,6 +26,7 @@ urlpatterns = [
     path('cart/',views.get_products_detail_in_cart),
     path('add_to_cart/', views.create_mul_cartdetail),
     path('checkout/',views.checkout),
+    path('checkout/quick_buy/', views.checkout_for_buynow),
     path('update_like_comments/',views.updateLikeComments),
     path('callbackMoMo/',views.callbackMoMo),
     path('create_rating_store/', views.create_store_rating),

@@ -4,6 +4,7 @@ export const Cart_Action_Type = {
     LOG_OUT: 'user_logged_out',
     ADD_NEW_VARIANT: 'cartAddAVariant',
     UPDATE_CART_AFTER_POST: 'updateCartAfterPost',
+    UPDATE_CART: 'updateCart'
 }
 
 const CartReducer = (cart, action) => {
@@ -21,6 +22,10 @@ const CartReducer = (cart, action) => {
                 ...cart, total_quantity : cart.total_quantity + 1
             }
         case Cart_Action_Type.UPDATE_CART_AFTER_POST:
+            return {
+                ...action.payload
+            }
+        case Cart_Action_Type.UPDATE_CART:
             return {
                 ...action.payload
             }

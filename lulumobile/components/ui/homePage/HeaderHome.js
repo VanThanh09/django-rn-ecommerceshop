@@ -10,7 +10,6 @@ const HeaderHome = ({ value, onChangeText, showBackButton = false, showHomeButto
     nav = useNavigation()
     user = useContext(MyUserContext)
     const { cart } = useContext(CartContext)
-
     const route = useRoute()
     const nestedScreen = nav.getParent()?.getState()?.routeNames[nav.getParent()?.getState().index];
 
@@ -26,12 +25,12 @@ const HeaderHome = ({ value, onChangeText, showBackButton = false, showHomeButto
                     nestedScreen: "home",
                     route: "cartPage",
                     // Params để quay trở về
-                    params: {
-                        prevScreen: {
-                            nestedScreen: nestedScreen, previousRoute: route.name,
-                            prevRouteParams: route.params
-                        }
-                    }
+                    // params: {
+                    //     prevScreen: {
+                    //         nestedScreen: nestedScreen, previousRoute: route.name,
+                    //         prevRouteParams: route.params
+                    //     }
+                    // }
                 }
             }
         })
@@ -39,36 +38,32 @@ const HeaderHome = ({ value, onChangeText, showBackButton = false, showHomeButto
 
     const handleOnPressCart = () => {
         if (user === null) {
-            navigateLoginPage('home', 'cartPage')
+            navigateLoginPage()
         }
         else {
-            nav.navigate('cartPage', {
-                prevScreen: {
-                    nestedScreen: nestedScreen, previousRoute: route.name,
-                    prevRouteParams: route.params
-                }
-            })
+            nav.navigate('cartPage')
         }
     }
 
     const handleGoBack = () => {
-        const {prevScreen} = route.params
-        if (prevScreen) {
-            if (prevScreen.nestedScreen) {
-                nav.navigate(prevScreen.nestedScreen, {
-                    screen: prevScreen.previousRoute,
-                    params: {
-                        ...prevScreen.prevRouteParams
-                    }
-                })
-            }
-            else {
-                nav.navigate(prevScreen.previousRoute, {...prevScreen.prevRouteParams})
-            }
-        }
-        else {
-            nav.navigate("index")
-        }
+        // const {prevScreen} = route.params
+        // if (prevScreen) {
+        //     if (prevScreen.nestedScreen) {
+        //         nav.navigate(prevScreen.nestedScreen, {
+        //             screen: prevScreen.previousRoute,
+        //             params: {
+        //                 ...prevScreen.prevRouteParams
+        //             }
+        //         })
+        //     }
+        //     else {
+        //         nav.navigate(prevScreen.previousRoute, {...prevScreen.prevRouteParams})
+        //     }
+        // }
+        // else {
+        //     nav.navigate("index")
+        // }
+        nav.goBack()
     }
 
     return (
@@ -111,7 +106,7 @@ const HeaderHome = ({ value, onChangeText, showBackButton = false, showHomeButto
                         </View>
                         {
                             showHomeButton ? (<View>
-                                <IconButton icon="home-outline" size={25} onPress={() => nav.navigate("index")} iconColor="#fff" />
+                                <IconButton icon="home-outline" size={25} onPress={() => nav.popToTop()} iconColor="#fff" />
                             </View>) : <View><IconButton
                                 icon="chat-processing-outline"
                                 size={25}

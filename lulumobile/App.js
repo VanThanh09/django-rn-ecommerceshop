@@ -16,7 +16,8 @@ import CartReducer from './reducers/CartReducer';
 // Get current name route focused
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import Cart from './components/cart/cart';
-import { HeaderCartLeft, HeaderCartTitile } from './components/cart/cart';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import Checkout from './components/home/checkout';
 
 const Stack = createNativeStackNavigator();
 const HomeStackNavigator = createNativeStackNavigator();
@@ -36,8 +37,8 @@ function HomeStack({ navigation, route }) {
     <HomeStackNavigator.Navigator>
       <HomeStackNavigator.Screen name="index" component={Home} options={{ headerShown: false }} />
       <HomeStackNavigator.Screen name="productDetail" component={ProductDetail} options={{ headerShown: false }} />
-      <HomeStackNavigator.Screen name="cartPage" component={Cart}
-      />
+      <HomeStackNavigator.Screen name="cartPage" component={Cart}/>
+      <HomeStackNavigator.Screen name="checkoutPage" component={Checkout}/>
     </HomeStackNavigator.Navigator>
   )
 }
@@ -50,7 +51,7 @@ function MyTabs() {
       <Tab.Screen name="home"
         component={HomeStack}
         options={({ route }) => {
-          const tabHidden = ['productDetail', 'cartPage'];
+          const tabHidden = ['productDetail', 'cartPage', 'checkoutPage'];
           const routeName = getFocusedRouteNameFromRoute(route);
           return {
             tabBarIcon: () => <Icon size={30} source="home" />,
@@ -59,16 +60,6 @@ function MyTabs() {
               : styles.tabBarStyle
           };
         }}
-        listeners={({ navigation }) => ({
-          tabPress: e => {
-            // Ngăn mặc định
-            e.preventDefault();
-            // Reset lại stack navigator để luôn quay về "index"
-            navigation.navigate('home', {
-              screen: 'index',
-            });
-          },
-        })}
       />
       <Tab.Screen
         name="account"
@@ -99,6 +90,7 @@ const App = () => {
   const [cart, cartDispatch] = useReducer(CartReducer, null);
 
   return (
+    <GestureHandlerRootView style={{flex:1}}>
     <MyUserContext.Provider value={user}>
       <MyDispatchContext.Provider value={dispatch}>
         <CartContext.Provider value={{ cart, cartDispatch }}>
@@ -108,6 +100,7 @@ const App = () => {
         </CartContext.Provider>
       </MyDispatchContext.Provider>
     </MyUserContext.Provider>
+    </GestureHandlerRootView>
   );
 }
 

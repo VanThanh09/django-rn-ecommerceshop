@@ -18,9 +18,20 @@ const TabBarProduct = ({ price, openModalCart, openModalBuyNow}) => {
         if (user === null) {
             navigation.navigate('account', {
                 screen: 'login', params: {
+                prevScreen: {
                     nestedScreen: nestedScreen, previousRoute: route.name,
                     prevRouteParams: route.params
+                },
+                // Màn hình muốn chuyển tới sau login
+                screenAfterLogin: {
+                    nestedScreen: "home",
+                    route: "productDetail",
+                    // Params để quay trở về
+                    params: {
+                        ...route.params
+                    }
                 }
+            }
             })
         }
         else {
@@ -32,9 +43,20 @@ const TabBarProduct = ({ price, openModalCart, openModalBuyNow}) => {
         if (user === null) {
             navigation.navigate('account', {
                 screen: 'login', params: {
+                prevScreen: {
                     nestedScreen: nestedScreen, previousRoute: route.name,
                     prevRouteParams: route.params
+                },
+                // Màn hình muốn chuyển tới sau login
+                screenAfterLogin: {
+                    nestedScreen: "home",
+                    route: "productDetail",
+                    // Params để quay trở về
+                    params: {
+                        ...route.params
+                    }
                 }
+            }
             })
         }
         else {
@@ -46,9 +68,20 @@ const TabBarProduct = ({ price, openModalCart, openModalBuyNow}) => {
         if (user === null) {
             navigation.navigate('account', {
                 screen: 'login', params: {
+                prevScreen: {
                     nestedScreen: nestedScreen, previousRoute: route.name,
                     prevRouteParams: route.params
+                },
+                // Màn hình muốn chuyển tới sau login
+                screenAfterLogin: {
+                    nestedScreen: "home",
+                    route: "productDetail",
+                    // Params để quay trở về
+                    params: {
+                        ...route.params
+                    }
                 }
+            }
             })
         }
         else {

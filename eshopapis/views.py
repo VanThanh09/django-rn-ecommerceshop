@@ -44,7 +44,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
         Cart.objects.create(user=user, total_quantity=0)
 
 # Return list of all product
-class ProductViewSet(viewsets.ViewSet, generics.ListAPIView):
+class ProductViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = Product.objects.filter(active=True)
     serializer_class = serializers.ProductSerializer
     pagination_class = paginators.ProductPage
@@ -325,7 +325,7 @@ def get_products_detail_in_cart(request):
     for pvar in cart.products.all():
         stores.add(pvar.product.store)
     if not stores:
-        return Response(data={"msg": "Empty Cart !!!"}, status=status.HTTP_200_OK)
+        return Response(data=[], status=status.HTTP_200_OK)
     # Response data to client
     data = []
     for store in stores:
@@ -416,20 +416,60 @@ def checkout(request):
         pv_serializer = serializers.CartProductVariantSerializer(product_variants, many=True)
         products_same_store['product_variants'] = pv_serializer.data
         total_price = 0
+        total_quantity = 0
         for p in products_same_store['product_variants']:
             total_price += p.get('total_price')
-        total_quantity = len(products_same_store['product_variants'])
+            total_quantity += p.get('quantity')
         products_same_store['total_price'] = total_price
         products_same_store['total_quantity'] = total_quantity
         data['cart_items'].append(products_same_store)
 
-        data['payment_method'] = ['ONLINE', 'OFFLINE']
-        total_price = 0
+        total_final_price = 0
+        total_final_quantity = 0
         for item in data['cart_items']:
-            total_price += item.get('total_price')
-        data['total_price'] = total_price
+            total_final_price += item.get('total_price')
+            total_final_quantity += item.get('total_quantity')
+        data['total_final_price'] = total_final_price
+        data['total_final_quantity'] = total_final_quantity
 
     return Response(data=data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([perms.IsCustomerOrSeller])
+def checkout_for_buynow(request):
+    # Response data to client
+    data = {}
+    user = {
+        "fullname": request.user.first_name + " " + request.user.last_name,
+        "address": request.user.address
+    }
+    data['user'] = user
+    data['cart_items'] = []
+    products_same_store = {}
+    store_serializer = serializers.CartStoreSerializer(Store.objects.get(pk=request.data.get('store')))
+    products_same_store['store'] = store_serializer.data
+    product_variant = ProductVariant.objects.get(pk=request.data.get('product_variant'))
+    pv_serializer = serializers.ProductVariantWithProductNameSerializer(product_variant)
+    products_same_store['product_variants'] = [pv_serializer.data]
+    total_price = 0
+    for p in products_same_store['product_variants']:
+        total_price += request.data.get('quantity') * p.get('price')
+    total_quantity = request.data.get('quantity')
+    products_same_store['total_price'] = total_price
+    products_same_store['total_quantity'] = total_quantity
+    data['cart_items'].append(products_same_store)
+
+    total_final_price = 0
+    total_final_quantity = 0
+    for item in data['cart_items']:
+        total_final_price += item.get('total_price')
+        total_final_quantity += item.get('total_quantity')
+    data['total_final_price'] = total_final_price
+    data['total_final_quantity'] = total_final_quantity
+
+    return Response(data=data, status=status.HTTP_200_OK)
+
 
 
 # CartDetail Create Partial-Update Delete
@@ -441,11 +481,50 @@ class CartDetailViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.Updat
     def perform_create(self, serializer):
         serializer.save(cart=self.request.user.cart)
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(get_cart_products_data(request.user),status=status.HTTP_200_OK)
+
     def perform_destroy(self, instance):
         # Before delete a cart detail cart.total_quantity --
         instance.cart.total_quantity -= 1
         instance.cart.save()
         instance.delete()
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
+
+        return Response(get_cart_products_data(request.user), status=status.HTTP_200_OK)
+
+
+    @action(detail=False, methods=['delete'])
+    def bulk_delete(self, request):
+        cart_detail_ids = request.data
+        cart_details = CartDetail.objects.filter(id__in=cart_detail_ids)
+
+        for cart_detail in cart_details:
+            self.check_object_permissions(request, cart_detail)
+
+        if cart_details:
+            cart = cart_details[0].cart  # assume all items are in same cart
+            cart.total_quantity -= len(cart_details)
+            cart.save()
+
+        for cart_detail in cart_details:
+            cart_detail.delete()
+
+        return Response(get_cart_products_data(request.user), status=status.HTTP_200_OK)
+
 
 # Create multiple cart detail
 
@@ -469,6 +548,31 @@ def create_mul_cartdetail(request):
     serializer = serializers.CartSerializer(cart)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+# Helper function (no decorators)
+def get_cart_products_data(user):
+    stores = set()
+    cart = user.cart
+    change_cart_detail_active(cart=cart)
+
+    for pvar in cart.products.all():
+        stores.add(pvar.product.store)
+
+    if not stores:
+        return []
+
+    data = []
+    for store in stores:
+        products_same_store = {}
+        store_serializer = serializers.CartStoreSerializer(store)
+        products_same_store['store'] = store_serializer.data
+
+        product_variants = cart.cartdetail_set.filter(product_variant__product__store=store)
+        pv_serializer = serializers.CartProductVariantSerializer(product_variants, many=True)
+        products_same_store['product_variants'] = pv_serializer.data
+
+        data.append(products_same_store)
+
+    return data
 
 # Done cart/ , cart-basic-info, checkout
 # Create order, orderDetail for each shop, after that remove all the from cart
@@ -639,12 +743,11 @@ class OrderViewSet(viewsets.ViewSet,generics.CreateAPIView, generics.RetrieveUpd
                # Momo response kết quả xác nhận xử lý yeeu cầu tạo thanh toán
                MomoResponse = callApiMoMo(data)
 
-               if (MomoResponse.get('resultCode') == 0):
+               if (MomoResponse.get('resultCode') == 0):\
                    return Response(data={'result_code': 0,'deeplink': MomoResponse.get('deeplink')
                        , 'msg':"Gửi yêu cầu thanh toán thành công"}, status=status.HTTP_200_OK)
 
                return Response(data={'result_code': MomoResponse.get('resultCode'), 'msg': "Có lỗi xảy ra"}, status=status.HTTP_400_BAD_REQUEST)
-
 
 
     def partial_update(self, request, *args, **kwargs):

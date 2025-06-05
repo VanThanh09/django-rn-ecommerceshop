@@ -9,7 +9,6 @@ function Home() {
     const [products, setProducts] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const nav = useNavigation()
-
     const loadProducts = async () => {
         let res = await Apis.get(endpoints['products']);
         setProducts(res.data.results);

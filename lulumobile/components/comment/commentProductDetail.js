@@ -77,6 +77,7 @@ const CommentCateText = ({ attributes, content }) => {
 const ImageComemnts = ({ image_list }) => {
     let col = 3
     const images = []
+    //console.log(image_list)
     if (image_list.length > col) {
         for (let i = 0; i < col; i++) {
             if (i == col - 1) {
@@ -209,6 +210,8 @@ const CommentProductDetail = ({ commentsInfo }) => {
     const [activeLike, setActiveLike] = useState([])
     const likeRef = useRef(activeLike)
 
+    //console.log(commentsList)
+
     const toggleLike = (commentId) => {
         activeLike.includes(commentId) ? setActiveLike(activeLike.filter(cId => cId != commentId)) : setActiveLike([...activeLike, commentId])
     }
@@ -243,7 +246,6 @@ const CommentProductDetail = ({ commentsInfo }) => {
             };
         }, [])
     )
-
 
     return (
         <View>
