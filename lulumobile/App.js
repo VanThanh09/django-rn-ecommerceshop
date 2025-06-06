@@ -21,6 +21,9 @@ import ChatScreen from './components/chat/ChatScreen';
 import UpdateProduct from './components/store/UpdateProduct';
 import CartReducer from './reducers/CartReducer';
 import Cart from './components/cart/Cart';
+import ManageOrders from './components/store/ManageOrders';
+import Orders from './components/user/Orders';
+import Revenue from './components/store/Revenue';
 
 const ProfileStack = createNativeStackNavigator();
 function MyProfileStack() {
@@ -32,6 +35,7 @@ function MyProfileStack() {
       <ProfileStack.Screen name="storeRegister" component={StoreRegister} options={{ title: "Đăng ký cửa hàng" }} />
       <ProfileStack.Screen name="conversations" component={Conversations} options={{ title: "Chat" }} />
       <ProfileStack.Screen name="chat" component={ChatScreen} options={{ title: "Chat", headerShown: false }} />
+      <ProfileStack.Screen name="orders" component={Orders} options={{ title: "Danh sách đơn hàng" }} />
     </ ProfileStack.Navigator>
   )
 }
@@ -54,6 +58,8 @@ function MyStoreStack() {
       <StoreStack.Screen name="storeMain" component={Store} options={{ title: "Cửa hàng của bạn", headerShown: false }} />
       <StoreStack.Screen name='addProduct' component={AddProduct} options={{ title: "Thêm sản phẩm" }} />
       <StoreStack.Screen name="updateProduct" component={UpdateProduct} options={{ title: "Sửa sản phẩm" }} />
+      <StoreStack.Screen name="manageOrders" component={ManageOrders} options={{ title: "Quản lý đơn hàng" }} />
+      <StoreStack.Screen name="revenue" component={Revenue} options={{ title: "Thống kê" }} />
     </StoreStack.Navigator>
   )
 }

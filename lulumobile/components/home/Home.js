@@ -48,7 +48,7 @@ function Home() {
                         url = `${url}&category_id=${cate}`;
                     })
                 }
-
+                console.log("loadd")
                 if (searchQuery) {
                     url = `${url}&q=${searchQuery}`;
                 }
@@ -67,8 +67,6 @@ function Home() {
                     url = `${url}&order_price=${filterPrice}`;
                 }
 
-                console.log("load");
-
                 let res = await Apis.get(url);
 
                 if (page === 1)
@@ -78,6 +76,7 @@ function Home() {
 
                 if (res.data.next === null)
                     setPage(0);
+
             } catch {
 
             } finally {
@@ -98,13 +97,13 @@ function Home() {
     };
 
     const onLoadMore = async () => {
-        if (!loadMore && page > 0) {
+        if (!loadMore && page > 0 && products.length > 0) {
             setPage(page + 1);
         }
     }
 
     useEffect(() => {
-        console.log(page)
+        // console.log(page)
         loadProducts();
     }, [page]);
 
@@ -144,8 +143,6 @@ function Home() {
         setFilterPrice(null);
         setSelectedCate([]);
     }
-
-
 
     const headerCategories = useMemo(() => (
         <View style={{ margin: 5, backgroundColor: "#fff", borderRadius: 5, padding: 5 }}>

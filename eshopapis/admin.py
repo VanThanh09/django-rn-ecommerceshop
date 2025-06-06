@@ -52,18 +52,18 @@ class MyAdminSite(admin.AdminSite):
         context['total_order'] = Order.objects.count()
         context['total_order_30_days'] = Order.objects.filter(created_date__gte=last_30_days).count()
 
-        revenue_30_days = Order.objects.filter(
-            paid=True,
-            created_date__gte=last_30_days
+        revenue_30_days = OrderDetail.objects.filter(
+            order_status = OrderDetail.OrderStatus.SUCCESS,
+            order__created_date__gte=last_30_days
         ).aggregate(
-            total_price=Sum('total_price')
+            total_price=Sum("product_variant__price")
         )['total_price'] or 0
 
-        revenue_1_year = Order.objects.filter(
-            paid=True,
-            created_date__gte=last_year
+        revenue_1_year = OrderDetail.objects.filter(
+            order_status = OrderDetail.OrderStatus.SUCCESS,
+            order__created_date__gte=last_year
         ).aggregate(
-            total_price=Sum('total_price')
+            total_price=Sum("product_variant__price")
         )['total_price'] or 0
 
         context.update({

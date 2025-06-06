@@ -17,14 +17,16 @@ const Store = () => {
     const [store, setStore] = useState();
     const [myProducts, setMyProducts] = useState([]);
     const [page, setPage] = useState(1);
+    const [countOrderPending, setCountOrderPending] = useState(0);
     const [loading, setLoading] = useState(false);
 
     const loadStore = async () => {
         let token = await AsyncStorage.getItem("token");
-        let url = endpoints['store'];
+        let url = `${endpoints['store']}my_store/`;
 
         let res = await authApis(token).get(url);
-        setStore(res.data.results[0]);
+
+        setStore(res.data);
     }
 
     const loadProducts = async () => {
@@ -44,6 +46,10 @@ const Store = () => {
                         setMyProducts((prev) => [...prev, ...res.data.results])
                 }
 
+                let total_pending = await authApis(token).get(endpoints["count_order_pending"]);
+                if (total_pending.data.count) {
+                    setCountOrderPending(total_pending.data.count)
+                }
                 if (res.data.next === null)
                     setPage(0)
             } catch {
@@ -56,7 +62,8 @@ const Store = () => {
     }
 
     const handleAddProduct = () => (nav.navigate('addProduct'));
-    const handleUpdateProduct = () => (nav.navigate('updateProduct'));
+    const handleManageOrders = () => (nav.navigate('manageOrders'));
+    const handleRevenue = () => (nav.navigate('revenue', { "store": store }));
 
     useEffect(() => {
         loadStore();
@@ -74,8 +81,21 @@ const Store = () => {
     const sellerFeatures = [{
         label: "Thêm sản phẩm",
         icon: "plus-box",
-        color: "#3a5998",
+        color: "#3585c5",
         handle: handleAddProduct,
+        count: 0,
+    }, {
+        label: "Quản lý đơn hàng",
+        icon: "order-bool-ascending",
+        color: "#8b5763",
+        handle: handleManageOrders,
+        count: countOrderPending,
+    }, {
+        label: "Thống kê cửa hàng",
+        icon: "cash-multiple",
+        color: "#4CAF50",
+        handle: handleRevenue,
+        count: 0,
     }]
 
     const ProductItem = ({ item }) => (
@@ -110,6 +130,7 @@ const Store = () => {
                                 color={i.color}
                                 onPress={i.handle}
                                 key={i.label}
+                                count={i.count}
                             />
                         ))}
                     </View>
@@ -193,12 +214,12 @@ const styles = StyleSheet.create({
     price: {
         fontWeight: 'bold',
         fontSize: 14,
-        color: '#e91e63',
+        color: '#44518c',
     },
     editButton: {
         position: 'absolute',
         borderWidth: 1,
-        borderColor: '#fa5230',
+        borderColor: '#44518c',
         top: 5,
         right: 8,
         paddingVertical: 4,
@@ -206,7 +227,7 @@ const styles = StyleSheet.create({
         borderRadius: 4,
     },
     editText: {
-        color: '#fa5230',
+        color: '#44518c',
         fontSize: 12,
     },
 })

@@ -31,4 +31,6 @@ urlpatterns = [
     path('callbackMoMo/',views.callbackMoMo),
     path('create_rating_store/', views.create_store_rating),
     path('revenue/', views.revenue_chart_data),
+    path('count_order_pending/', views.count_order_pending),
+    path('revenue_of_store/', views.revenue_of_store),
 ]

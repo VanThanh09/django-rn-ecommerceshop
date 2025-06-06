@@ -1,9 +1,8 @@
 import base64
 import json
+from collections import defaultdict
 from datetime import timedelta
 
-import requests
-from cloudinary import CloudinaryResource
 from django.db.models.functions import TruncDay, TruncMonth
 from django.http import JsonResponse
 from django.utils.timezone import now
@@ -13,7 +12,7 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 import cloudinary.api
-from django.db.models import Min, Avg, Sum
+from django.db.models import Min, Avg, Sum, F
 from eshopapis.models import Product, Store, User, VerificationSeller, ProductVariant, Attribute, AttributeValue, Order, \
     OrderDetail, CartDetail, Cart, Category, CommentUser, StoreRating, CommentImage, CommentSeller, Payment
 from eshopapis import serializers, perms, paginators
@@ -32,7 +31,7 @@ def delete_image_from_cloudinary(image_url):
         print(f"Không thể xóa ảnh: {e}")
 
 
-@csrf_exempt
+@api_view(['GET'])
 def revenue_chart_data(request):
     """API trả về dữ liệu doanh thu theo ngày"""
 
@@ -42,11 +41,11 @@ def revenue_chart_data(request):
 
     if days<151:
         orders = (
-            Order.objects
-            .filter(paid=True, created_date__gte=start_date)
-            .annotate(day=TruncDay('created_date'))
+            OrderDetail.objects
+            .filter(order__created_date__gte = start_date, order_status = OrderDetail.OrderStatus.SUCCESS)
+            .annotate(day=TruncDay('order__created_date'))
             .values('day')
-            .annotate(total=Sum('total_price'))
+            .annotate(total=Sum('product_variant__price'))
             .order_by('day')
         )
         chart_data = [
@@ -58,11 +57,11 @@ def revenue_chart_data(request):
         ]
     else:
         orders = (
-            Order.objects
-            .filter(paid=True, created_date__gte=start_date)
-            .annotate(month=TruncMonth('created_date'))
+            OrderDetail.objects
+            .filter(order__created_date__gte=start_date, order_status=OrderDetail.OrderStatus.SUCCESS)
+            .annotate(month=TruncMonth('order__created_date'))
             .values('month')
-            .annotate(total=Sum('total_price'))
+            .annotate(total=Sum('product_variant__price'))
             .order_by('month')
         )
         chart_data = [
@@ -74,6 +73,55 @@ def revenue_chart_data(request):
         ]
 
     return JsonResponse(chart_data, safe=False)
+
+
+@api_view(['GET'])
+@permission_classes([perms.IsSeller])
+def revenue_of_store(request):
+
+    start_date = now().date() - timedelta(days=365)
+
+    store = Store.objects.filter(owner=request.user).first()
+    orders_success = OrderDetail.objects.filter(store=store, order_status=OrderDetail.OrderStatus.SUCCESS)
+    orders_count = orders_success.count()
+
+    total_revenue = orders_success.filter(order_status="SU").aggregate(
+        total=Sum(F('quantity') * F('product_variant__price'))
+    )['total'] or 0
+
+    store_rating = StoreRating.objects.filter(store__owner_id=request.user).aggregate(avg=Avg('rating'))['avg'] or 0
+
+    orders_1_year = (
+        orders_success.filter(order__created_date__gte=start_date)
+        .annotate(month=TruncMonth('order__created_date'))
+        .values('month')
+        .annotate(total=Sum('product_variant__price'))
+        .order_by('month')
+    )
+
+    chart_data = [
+        {
+            "date": item["month"].strftime('%m-%Y'),
+            "revenue": item["total"]
+        }
+        for item in orders_1_year
+    ]
+
+    top_product = (orders_success
+                   .values('product_variant__product__id', 'product_variant__product__name')
+                   .annotate(total_sold = Sum('quantity'))
+                   .order_by('-total_sold')[:10]
+                   )
+
+    result = {
+        "orders_count": orders_count,
+        "total_revenue": "{:,.0f}".format(total_revenue),
+        "chart_data": chart_data,
+        "top_product": top_product,
+        "store_rating": store_rating,
+    }
+
+    return Response(result, status=status.HTTP_200_OK)
 
 
 # Create new user
@@ -328,46 +376,57 @@ class ProductUpdateViewSet(viewsets.ViewSet, generics.UpdateAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        # Xóa hết biến thể
-        product.productvariant_set.all().delete()
-
         # Thêm biến thể mới lại
         index = 0
         while True:
             prefix = f"variants[{index}]"
+            variant_id = request.data.get(f"{prefix}[id]")
+
             price = request.data.get(f"{prefix}[price]")
             quantity = request.data.get(f"{prefix}[quantity]")
             attributes_json = request.data.get(f"{prefix}[attributes]")
             logo_file = request.FILES.get(f"{prefix}[logo]")
             logo_url = request.data.get(f"{prefix}[logo_url]")
 
-            if not price and not quantity:
-                break  # Không còn variant nào nữa
-
-            attributes = []
-            attrs = json.loads(attributes_json)  # lấy từng attribute value ra để lưu
-            for attr in attrs:
-                attr_obj, _ = Attribute.objects.get_or_create(
-                    name=attr["attribute_name"])
-                attr_value, _ = AttributeValue.objects.get_or_create(
-                    value=attr["value"],
-                    attribute=attr_obj,
-                )
-                attributes.append(attr_value.id)
-
             if not logo_file and logo_url:
                 logo_file = f"image/upload/{logo_url.split('image/upload/')[1].strip()}"
 
-            product_variant = ProductVariant.objects.create(
-                quantity=quantity,
-                price=price,
-                logo=logo_file,
-                product=product
-            )
-            product_variant.attributes.set(attributes)
-            index += 1
+            if not price and not quantity:
+                break  # Không còn variant nào nữa
 
-        return Response(serializer.data, status=status.HTTP_200_OK)
+            if variant_id:
+                variant = ProductVariant.objects.get(pk=variant_id)
+                variant.price = price
+                variant.quantity = quantity
+                variant.logo = logo_file
+                variant.save()
+
+                index += 1
+
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                attributes = []
+
+                attrs = json.loads(attributes_json)  # lấy từng attribute value ra để lưu
+                for attr in attrs:
+                    attr_obj, _ = Attribute.objects.get_or_create(
+                        name=attr["attribute_name"])
+                    attr_value, _ = AttributeValue.objects.get_or_create(
+                        value=attr["value"],
+                        attribute=attr_obj,
+                    )
+                    attributes.append(attr_value.id)
+
+                product_variant = ProductVariant.objects.create(
+                    quantity=quantity,
+                    price=price,
+                    logo=logo_file,
+                    product=product
+                )
+                product_variant.attributes.set(attributes)
+                index += 1
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # Return a store detail
@@ -420,6 +479,14 @@ class StoreDetailViewSet(viewsets.ViewSet, generics.ListAPIView):
         data['total_product'] = self.get_total_product(pk)
 
         return Response(data=data, status=status.HTTP_200_OK)
+
+    @action(methods=['GET'], detail=False, url_path='my_store', permission_classes=[perms.IsSeller])
+    def get_my_store(self, request):
+        store = Store.objects.filter(active=True, owner=request.user).first()
+        if not store:
+            return Response({"detail": "Store not found."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            return Response(serializers.StoreSerializer(store).data, status=status.HTTP_200_OK)
 
 
 # POST api for customer want to become seller
@@ -722,13 +789,19 @@ class CommentUserViewSet(viewsets.ViewSet, generics.CreateAPIView,generics.Updat
     def create(self, request, *args, **kwargs):
         # A user can comment about the product of it's store
         product_variant = ProductVariant.objects.get(pk=request.data.get('product_variant'))
+        order_detail = OrderDetail.objects.get(pk=request.data.get('order_detail'))
         content = request.data.get('content')
         rating = request.data.get('rating')
 
-        if (request.user == product_variant.product.store.owner):
-            return Response(data={"msg": "Can not comment on your own product"}, status=status.HTTP_200_OK)
+        print(product_variant)
+        print(order_detail)
+        print(content)
+        print(rating)
 
-        image_list = request.Files.get('image_list')
+        if (request.user == product_variant.product.store.owner):
+            return Response(data={"msg": "Can not comment on your own product"}, status=status.HTTP_403_FORBIDDEN)
+
+        image_list = request.FILES.getlist('image_list')
 
         # Luu comment
         newComment = CommentUser.objects.create(product_variant=product_variant, content=content, rating=rating, user=request.user)
@@ -738,6 +811,10 @@ class CommentUserViewSet(viewsets.ViewSet, generics.CreateAPIView,generics.Updat
             CommentImage.objects.create(image=image, comment=newComment)
 
         serializer = serializers.CommentUserViewSerializer(newComment)
+
+        order_detail.is_commented = True
+        order_detail.save()
+
         return Response(data=serializer.data, status=status.HTTP_201_CREATED)
 
     def partial_update(self, request, *args, **kwargs):
@@ -753,6 +830,7 @@ class CommentUserViewSet(viewsets.ViewSet, generics.CreateAPIView,generics.Updat
         cmt = self.get_object()
         rep_cmt = CommentSeller.objects.create(rep_cmt=cmt, content=request.data.get('content'),seller=request.user)
         return Response(serializers.CommentSellerSerializer(rep_cmt).data, status=status.HTTP_201_CREATED)
+
 
 class CommentSellerViewSet(viewsets.ViewSet, generics.UpdateAPIView,generics.DestroyAPIView):
     queryset = CommentSeller.objects.all()
@@ -797,6 +875,13 @@ class OrderDetailUpdateViewSet(viewsets.ViewSet,generics.UpdateAPIView):
     queryset = OrderDetail.objects.all()
     serializer_class = serializers.OrderDetailUpdateSerializer
     permission_classes = [perms.OrderDetailUpdatePermission]
+
+    @action(methods=['patch'], url_path='cancel_order', detail=True, permission_classes=[perms.CancelOrderDetailPermission])
+    def cancel_order(self, request, pk=None):
+        order_detail = self.get_object()
+        order_detail.order_status = OrderDetail.OrderStatus.CANCEL
+        order_detail.save()
+        return Response(serializers.OrderDetailUpdateSerializer(order_detail).data, status=status.HTTP_200_OK)
 
 
 class OrderViewSet(viewsets.ViewSet,generics.CreateAPIView, generics.RetrieveUpdateDestroyAPIView):
@@ -933,7 +1018,7 @@ def userpurchase_list(request):
     serializer = serializers.OrderDetailSerializer(orders, many=True)
 
     if not orders:
-        return Response({"msg": "Chưa có đơn hàng"}, status=status.HTTP_404_NOT_FOUND)
+        return Response([])
 
     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -948,18 +1033,61 @@ def userpurchase_list(request):
 @api_view(['GET'])
 @permission_classes([perms.IsSeller])
 def storeorder_list(request):
-    if request.query_params.get('status') == None:
-        orders = OrderDetail.objects.filter(
-            store=request.user.store_set.values_list('id', flat=True)[0])  # Getting id of request.user's store
+    status_filter = request.query_params.get('status')
+
+    if status_filter == "PE":
+        store_id = request.user.store_set.values_list('id', flat=True).first()
+
+        order_detail_qs = OrderDetail.objects.filter(store=store_id)
+
+        order_detail_qs = order_detail_qs.filter(order_status=status_filter)
+
+        grouped = defaultdict(list)
+        # grouped[1].append('new') auto create {1: ['new']} if not exist
+
+        for order_detail in order_detail_qs:
+            customer = order_detail.order.customer
+            customer_id = order_detail.order.customer.id
+
+            order = serializers.OrderStoreSerializer(order_detail).data
+
+            grouped[customer_id ].append((customer,order))
+
+        result = []
+        for customer_id, items in grouped.items():
+            customer_info, _ = items[0]
+            result.append({
+                "customer": {
+                    "id": customer_info.id,
+                    "firstname": customer_info.first_name,
+                    "lastname": customer_info.last_name,
+                },
+                "data": [data for _, data in items]
+            })
+
+        return Response(result, status=status.HTTP_200_OK)
     else:
-        orders = OrderDetail.objects.filter(store=request.user.store_set.values_list('id', flat=True)[0],
-                                      order_status=request.query_params.get('status'))
-    serializer = serializers.OrderStoreSerializer(orders, many=True)
+        if status_filter is None:
+            orders = OrderDetail.objects.filter(
+                store=request.user.store_set.values_list('id', flat=True)[0])  # Getting id of request.user's store
+        else:
+            orders = OrderDetail.objects.filter(store=request.user.store_set.values_list('id', flat=True)[0],
+                                                order_status=status_filter)
+        serializer = serializers.OrderStoreSerializer(orders, many=True)
 
-    if not orders:
-        return Response({"msg": "Chưa có đơn hàng"}, status=status.HTTP_400_BAD_REQUEST)
+        if not orders:
+            return Response([])
 
-    return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([perms.IsSeller])
+def count_order_pending(request):
+    store_id = request.user.store_set.values_list('id', flat=True).first()
+    result = OrderDetail.objects.filter(store=store_id, order_status=OrderDetail.OrderStatus.PENDING).count()
+
+    return Response({'count' :result}, status=status.HTTP_200_OK)
 
 
  ############################### Store rating ##################################

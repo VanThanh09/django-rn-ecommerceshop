@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Apis, { endpoints } from "../../../configs/Apis";
 import { Button, View, Image, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { ActivityIndicator } from "react-native-paper";
+import { ActivityIndicator, Icon } from "react-native-paper";
 
 const StoreInfo = ({ storeInfo }) => {
     return (
@@ -26,7 +26,7 @@ const StoreStats = ({ rating, totalProduct }) => {
     return (
         <View style={styles.storeStatsContainer}>
             <View style={styles.avgRatingContainer}>
-                <Text>{rating.average_rating_store}</Text>
+                <Text>{rating.average_rating_store} <Icon source="star" size={18} color='#fa5230' /></Text>
                 <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.5)' }}>{rating.hasRating ? "Đánh giá" : "Chưa có đánh giá"}</Text>
             </View>
             <View style={styles.totalProductContainer}>

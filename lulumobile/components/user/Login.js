@@ -7,6 +7,11 @@ import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CartContext, MyDispatchContext } from "../../configs/MyContext";
 import { CommonActions } from '@react-navigation/native';
+import * as Google from 'expo-auth-session/providers/google';
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const Login = ({ route }) => {
     const info = [{
@@ -89,6 +94,21 @@ const Login = ({ route }) => {
             }
         return true;
     }
+
+    // const [request, response, promptAsync] = Google.useAuthRequest({
+    //     clientId: '845623906398-asd5ud30cpg573vroa0b28at336eiakk.apps.googleusercontent.com',
+    //     redirectUri: `https://auth.expo.io/@dangvanthanh/lulumobile`,
+    // });
+
+    // useEffect(() => {
+    //     if (response?.type === 'success') {
+    //         const { id_token } = response.authentication;
+    //         console.log(id_token);
+    //     }
+    //     if (response) {
+    //         console.log(response);
+    //     }
+    // }, [response]);
 
     const login = async () => {
         if (validate()) {
@@ -213,7 +233,12 @@ const Login = ({ route }) => {
             </View>
 
             <View style={{ marginTop: 10 }}>
-                <TouchableOpacity style={styles.socialButton} onPress={() => promptAsync({ useProxy: true, showInRecents: true })}>
+                <TouchableOpacity disabled={!request} style={styles.socialButton} onPress={() => {
+                    console.log(1);
+                    promptAsync();
+                    console.log(2);
+                }}
+                >
                     <Image source={require('../../assets/google.png')} style={[styles.socialIcon]} />
                     <Text style={[styles.socialButtonText]}>Đăng ký với Google</Text>
                 </TouchableOpacity>

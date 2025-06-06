@@ -12,12 +12,6 @@ const Profile = () => {
     const nav = useNavigation();
     const [loading, setLoading] = useState(false);
 
-    const features = [{
-        label: "Đăng ký cửa hàng",
-        icon: "store",
-        color: "#3a5998"
-    }]
-
     const { cartDispatch } = useContext(CartContext)
 
     const logout = async () => {
@@ -59,6 +53,19 @@ const Profile = () => {
     const pressLogin = () => (nav.navigate("login"));
     const pressRegister = () => (nav.navigate("register"));
     const handleStoreRegister = () => (nav.navigate("storeRegister"));
+    const handleMyOrder = () => { nav.navigate("orders") };
+
+    const features = [{
+        label: "Đăng ký cửa hàng",
+        icon: "store",
+        color: "#1F3A93",
+        handle: () => handleStoreRegister(),
+    }, {
+        label: "Đơn hàng của bạn",
+        icon: "order-bool-ascending",
+        color: "#D97904",
+        handle: () => handleMyOrder(),
+    }]
 
     return (
         <SafeAreaView>
@@ -68,7 +75,7 @@ const Profile = () => {
 
                 {/* Tính năng chung */}
                 <View style={styles.viewContainer}>
-                    {features.map(i => <FeatureButton label={i.label} icon={i.icon} color={i.color} onPress={handleStoreRegister} key={i.label} />)}
+                    {features.map(i => <FeatureButton label={i.label} icon={i.icon} color={i.color} onPress={i.handle} key={i.label} />)}
                 </View>
 
             </ScrollView>

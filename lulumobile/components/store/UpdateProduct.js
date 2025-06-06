@@ -32,6 +32,7 @@ const UpdateProduct = ({ route }) => {
 
             setProduct(p);
             setName(p.name);
+            setLogo(p.logo);
             setDescription(p.description);
             setSelectedCate(p.category_set);
             setVariants(p.productvariant_set);
@@ -83,63 +84,120 @@ const UpdateProduct = ({ route }) => {
         setVariants(newVariants);
     };
 
-    const handleUpdate = async () => {
-        try {
-            setLoading(true);
-            const formData = new FormData();
-            formData.append("name", name);
-            formData.append("description", description);
-
-            if (logo) {
-                formData.append("logo", {
-                    uri: logo.uri,
-                    name: "product-logo.jpg",
-                    type: "image/jpeg"
-                });
+    const pickLogoForVariant = async (index) => {
+        let { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            alert("Permissions denied!");
+        } else {
+            const result = await ImagePicker.launchImageLibraryAsync();
+            if (!result.canceled) {
+                handleVariantChange(index, 'logo', result.assets[0]);
             }
+        }
+    };
 
-            formData.append("category_set", selectedCate.map(i => i.id));
+    function validate() {
+        if (!logo) {
+            Alert.alert('Lỗi', `Vui lòng chọn ảnh sản phẩm`, [
+                {
+                    text: 'Cancel',
+                    style: 'cancel',
+                },
+            ]);
+            return false;
+        }
 
-            if (variants.length > 0) {
-                variants.forEach((v, i) => {
-                    formData.append(`variants[${i}][price]`, v.price);
-                    formData.append(`variants[${i}][quantity]`, v.quantity);
-                    formData.append(`variants[${i}][attributes]`, JSON.stringify(v.attributes));
-                    if (v.logo && v.logo.uri) {
-                        formData.append(`variants[${i}][logo]`, {
-                            uri: v.logo.uri,
-                            name: v.logo.fileName || `variant-${i}.jpg`,
-                            type: v.logo.mimeType || "image/jpeg"
-                        });
-                    } else {
-                        formData.append(`variants[${i}][logo_url]`, v.logo);
+        if (!name || name === '') {
+            Alert.alert('Lỗi', `Vui lòng điền tên sản phẩm`, [
+                {
+                    text: 'Cancel',
+                    style: 'cancel',
+                },
+            ]);
+            return false;
+        }
+
+        if (!description || description === '') {
+            Alert.alert('Lỗi', `Vui lòng điền mô tả sản phẩm`, [
+                {
+                    text: 'Cancel',
+                    style: 'cancel',
+                },
+            ]);
+            return false;
+        }
+
+        if (!Array.isArray(selectedCate) || selectedCate.length === 0) {
+            Alert.alert("Kiểm tra", "Phải chọn ít nhất một thể loại");
+            return false;
+        }
+
+        return true;
+    }
+
+    const handleUpdate = async () => {
+        if (validate()) {
+            console.log(1);
+            try {
+                setLoading(true);
+                const formData = new FormData();
+                formData.append("name", name);
+                formData.append("description", description);
+
+                if (logo.uri) {
+                    formData.append("logo", {
+                        uri: logo.uri,
+                        name: "product-logo.jpg",
+                        type: "image/jpeg"
+                    });
+                }
+
+                formData.append("category_set", selectedCate.map(i => i.id));
+
+                if (variants.length > 0) {
+                    variants.forEach((v, i) => {
+                        if (v.id) {
+                            formData.append(`variants[${i}][id]`, v.id);
+                        }
+                        formData.append(`variants[${i}][price]`, v.price);
+                        formData.append(`variants[${i}][quantity]`, v.quantity);
+                        formData.append(`variants[${i}][attributes]`, JSON.stringify(v.attributes));
+                        if (v.logo && v.logo.uri) {
+                            formData.append(`variants[${i}][logo]`, {
+                                uri: v.logo.uri,
+                                name: v.logo.fileName || `variant-${i}.jpg`,
+                                type: v.logo.mimeType || "image/jpeg"
+                            });
+                        } else {
+                            formData.append(`variants[${i}][logo_url]`, v.logo);
+                        }
+                    });
+                }
+
+                // for (let pair of formData.entries()) {
+                //     console.log(`${pair[0]}:`, pair[1]);
+                // }
+
+                const token = await AsyncStorage.getItem("token");
+
+                let res = await authApis(token).patch(endpoints['update_product'](pId), formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
                     }
                 });
+                if (res.status === 200)
+                    alert("Cập nhật sản phẩm thành công!");
+
+                nav.reset({
+                    index: 0,
+                    routes: [{ name: 'storeMain' }],
+                })
+            } catch (err) {
+                console.log(err);
+                alert("Có lỗi xảy ra!");
+            } finally {
+                setLoading(false);
             }
-
-            for (let pair of formData.entries()) {
-                console.log(`${pair[0]}:`, pair[1]);
-            }
-
-            const token = await AsyncStorage.getItem("token");
-
-            let res = await authApis(token).patch(endpoints['update_product'](pId), formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                }
-            });
-            if (res.status === 200)
-                alert("Cập nhật sản phẩm thành công!");
-
-            nav.reset({
-                index: 0,
-                routes: [{ name: 'storeMain' }],
-            })
-        } catch (err) {
-            console.log(err);
-            alert("Có lỗi xảy ra!");
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -157,10 +215,10 @@ const UpdateProduct = ({ route }) => {
                     </Text>
                     <View style={styles.imageBlank}>
                         <TouchableOpacity onPress={() => pick(setLogo)} style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                            {logo ? (
+                            {logo.uri ? (
                                 <Image source={{ uri: logo.uri }} style={{ width: '100', height: '100', resizeMode: 'contain' }} />
                             ) : (
-                                <Image source={{ uri: product.logo }} style={{ width: 100, height: 100 }} />
+                                <Image source={{ uri: logo }} style={{ width: 100, height: 100 }} />
                             )}
                         </TouchableOpacity>
                     </View>
@@ -243,14 +301,14 @@ const UpdateProduct = ({ route }) => {
                             <View>
                                 {v.logo && v.logo.uri ? <>
                                     <View style={styles.image}>
-                                        <TouchableOpacity onPress={() => console.log(1)}>
+                                        <TouchableOpacity onPress={() => pickLogoForVariant(i)}>
                                             <Image source={{ uri: v.logo.uri }} style={{ width: 100, height: 100 }} />
                                         </TouchableOpacity>
                                     </View>
                                 </> : <>
 
                                     <View style={styles.image}>
-                                        <TouchableOpacity onPress={() => console.log(1)}>
+                                        <TouchableOpacity onPress={() => pickLogoForVariant(i)}>
                                             <Image source={{ uri: v.logo }} style={{ width: 100, height: 100 }} />
                                         </TouchableOpacity>
                                     </View>

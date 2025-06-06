@@ -237,7 +237,8 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         return {
             "id": obj.store.id,
             "name": obj.store.name,
-            "logo": obj.store.logo.url
+            "logo": obj.store.logo.url,
+            "owner_id": obj.store.owner.id
         }
 
     def get_product_variant(self, obj):
@@ -252,7 +253,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderDetail
-        fields = ['product','store','product_variant','order_status','quantity']
+        fields = ['product','store','product_variant','order_status','quantity', 'id', 'is_commented']
 
 
 class OrderDetailUpdateSerializer(serializers.ModelSerializer):

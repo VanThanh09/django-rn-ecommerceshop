@@ -145,6 +145,7 @@ class OrderDetail(models.Model):
     product_variant=models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True) # Biến thể sản phẩm nào
     order_status = models.CharField(max_length=2, choices=OrderStatus, default='PE')  # Trạng thái đơn hàng
     store = models.ForeignKey(Store, on_delete=models.SET_NULL, null=True, related_name="store_orders")
+    is_commented= models.BooleanField(default=False)
 
 
 class Payment(models.Model):

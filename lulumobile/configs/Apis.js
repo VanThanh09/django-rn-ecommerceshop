@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = 'https://6462-2402-800-62ec-c9ee-e9fa-4d9f-161b-57e1.ngrok-free.app/'
+const BASE_URL = 'https://6eb0-2402-800-62ec-c9ee-893b-8dec-1f8f-d37e.ngrok-free.app/'
 export const endpoints = {
     'products': '/products/',
     'product': (pId) => `/product/${pId}/`,
@@ -14,6 +14,7 @@ export const endpoints = {
     'store': '/store/',
     'action_verification': (rId) => `/action_verification/${rId}/`,
     'update_product': (pId) => `/update_product/${pId}/`,
+
     'cart_basic_info': '/cart/basic-info/',
     'soldProducts': (pId) => `/product/${pId}/sold/`,
     'top5CommentsProduct': (pId) => `/product/${pId}/top5comments/`,
@@ -21,6 +22,15 @@ export const endpoints = {
     'updateLikeComment': '/update_like_comments/',
     'postProductsToCart': '/add_to_cart/',
     'cart': '/cart/',
+
+    'orderOfStore': (status) => `/portal/store/orders/?status=${status}`,
+    'update_order_detail': (oId) => `/update_order_detail/${oId}/`,
+    'cancel_order_detail': (oId) => `/update_order_detail/${oId}/cancel_order/`,
+    'orderOfUser': (status) => `/user/orders/?status=${status}`,
+    'count_order_pending': '/count_order_pending/',
+    'revenue_store': '/revenue_of_store/',
+    'comments': '/comments/',
+    'create_rating_store': '/create_rating_store/',
 }
 
 export const authApis = (token) => {

@@ -20,14 +20,14 @@ const ChatScreen = ({ route }) => {
     const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
     const user = useContext(MyUserContext);
-    const senderId = user.id;
+    const senderId = user?.id;
     const recieverId = recieverUser?.id;
 
     const nav = useNavigation();
 
     useEffect(() => {
         const fetchRrecieverUser = async () => {
-            if (!chatId || !recieverUser) {
+            if (storeOwnerId) {
                 try {
                     const u = await Apis.get(endpoints['info_user'](storeOwnerId));
                     setRecieverUser(u.data);
@@ -39,7 +39,7 @@ const ChatScreen = ({ route }) => {
         }
 
         fetchRrecieverUser();
-    }, [])
+    }, [storeOwnerId])
 
     useEffect(() => {
         const keyboardDidShowListener = Keyboard.addListener(

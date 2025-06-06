@@ -23,7 +23,6 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         padding: 10,
-        borderBottomWidth: 1,
         borderColor: "#ddd"
     },
     logo: {

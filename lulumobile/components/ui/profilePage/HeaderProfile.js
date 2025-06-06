@@ -14,7 +14,7 @@ const HeaderProfile = ({ onLoginPress, onRegisterPress, onLogoutPress }) => {
         if (user === null) {
             nav.navigate('login', {
                 prevScreen: {
-                    nestedScreen: "account", previousRoute: "index",
+                    nestedScreen: "account", previousRoute: "profileMain",
                     prevRouteParams: undefined
                 },
                 // Màn hình muốn chuyển tới sau login
@@ -25,7 +25,7 @@ const HeaderProfile = ({ onLoginPress, onRegisterPress, onLogoutPress }) => {
                     params: {
                         prevScreen: {
                             nestedScreen: "account",
-                            previousRoute: "index",
+                            previousRoute: "profileMain",
                         }
                     }
                 }
@@ -37,7 +37,7 @@ const HeaderProfile = ({ onLoginPress, onRegisterPress, onLogoutPress }) => {
                 params: {
                     prevScreen: {
                         nestedScreen: "account",
-                        previousRoute: "index",
+                        previousRoute: "profileMain",
                     }
                 }
             })
