@@ -18,10 +18,14 @@ function swapKeys(obj, key1, key2) {
 const NewAddress = ({ navigation, route }) => {
 
     const autoDefault = useRef(route.params?.autoDefault ?? false).current;
+    const showRemoveBtn = useRef(route.params?.showRemoveBtn ?? false).current;
+    const { index, selected } = route.params || {};
+
     const [streetText, setStreetText] = useState('')
-    const [isDefault, setIsDefault] = useState(autoDefault)
+    const [isDefault, setIsDefault] = useState(autoDefault || index == "0")
     const [address, setAddress] = useState({})
     const [openModalMsg, setOpenModalMsg] = useState(false)
+    const msg = useRef('')
     const user = useContext(MyUserContext)
     const dispatch = useContext(MyDispatchContext);
 
@@ -40,9 +44,11 @@ const NewAddress = ({ navigation, route }) => {
     }
 
     const handleOnvalueChange = () => {
-        if (autoDefault) {
+        if (autoDefault || index == "0") {
             // Mac dinh 
             setOpenModalMsg(true)
+            msg.current = index == "0" ? "Để thay đổi mặc định địa chỉ này vui lòng chọn địa chỉ khác làm mặc định" : 
+            "Địa chỉ đầu tiên sẽ được đặt mặc định"
         }
         else {
             setIsDefault(!isDefault)
@@ -56,23 +62,31 @@ const NewAddress = ({ navigation, route }) => {
 
     const handleOnpressUpdateAddressUser = async () => {
         try {
+            // LOGIC CREATE/UPDATE ADDRESS DỰA VÀO CÓ TRUYỀN INDEX xuống không (instance)
             let currentUserAddress = user.address
-            let newKey = Object.keys(user.address).length
+            let newKey = index
+            // có index => update
+
+            newKey = newKey === undefined ? Object.keys(user.address).length : index
             const newAddress = {
                 [newKey]: address
             }
-
+            // merge old address and new address
             let newUserAddress = { ...currentUserAddress, ...newAddress }
+
             // set địa chỉ vừa tạo thành địa chỉ mặc định
             if (isDefault) {
                 newUserAddress = swapKeys(newUserAddress, "0", newKey.toString())
+                if (selected) {
+                    DeviceEventEmitter.emit('event.hasChangeDefaultSelected', newKey.toString())
+                }
                 console.log("new address after swap key ", newUserAddress)
             }
             // update địa chỉ cho user
             const dataToPatch = {
                 address: newUserAddress
             }
-            console.log("data to patch ", dataToPatch)
+            console.log("data to patch from update", dataToPatch)
             const token = await AsyncStorage.getItem("token")
             let res = await authApis(token).patch(endpoints["updateUserInfo"], dataToPatch)
             console.log("res from new address ", res.data)
@@ -86,7 +100,43 @@ const NewAddress = ({ navigation, route }) => {
 
             DeviceEventEmitter.emit("event.updateUserShippingAddress", newUserAddress)
             navigation.goBack();
-            
+
+        }
+        catch (err) {
+            console.log("Fail to update user data", err)
+        }
+    }
+
+    const handleOnpressRemoveShippingAddress = async () => {
+        try {
+            // LOGIC REMOVE ADDRESS
+            let currentUserAddress = user.address
+            // destructuring giá trị mới sau khi bỏ sẽ lưu vào newUserAddress
+            if (index != "0") {
+                const { [index]: _, ...newUserAddress } = currentUserAddress
+
+                // update địa chỉ cho user
+                const dataToPatch = {
+                    address: newUserAddress
+                }
+                console.log("data to patch from remove address ", dataToPatch)
+                const token = await AsyncStorage.getItem("token")
+                let res = await authApis(token).patch(endpoints["updateUserInfo"], dataToPatch)
+                console.log("res from new address remove dia chi", res.data)
+                let userInfo = res.data;
+                // update user info
+
+                dispatch({
+                    "type": "updateAddress",
+                    "payload": userInfo
+                })
+
+                DeviceEventEmitter.emit("event.updateUserShippingAddress", newUserAddress)
+                navigation.goBack();
+            } else {
+                setOpenModalMsg(true)
+                msg.current = "Bạn không thể xóa địa chỉ mặc định"
+            }
         }
         catch (err) {
             console.log("Fail to update user data", err)
@@ -114,6 +164,16 @@ const NewAddress = ({ navigation, route }) => {
             eventListener.remove(); // Clean up the listener
         };
     }, [address]);
+
+    useEffect(() => {
+        if (showRemoveBtn) {
+            // set up data sẵn có với cái địa chỉ được chọn
+            console.log("index nhan duoc ", index)
+            setAddress({ ...user.address[index] })
+            // Lấy ra thông tin đường
+            setStreetText(user.address[index]["4"])
+        }
+    }, [showRemoveBtn, route])
 
     return (
         <View style={styles.container}>
@@ -153,18 +213,23 @@ const NewAddress = ({ navigation, route }) => {
                     <Switch
                         value={isDefault}
                         onValueChange={handleOnvalueChange}
-                        trackColor={{ false: '#ccc', true: '#90D7B8' }} // green track color when on
+                        trackColor={{ false: '#ccc', true: '#fa5230' }} // green track color when on
                         thumbColor="#fff" // white circle
                         ios_backgroundColor="#ccc"
                     />
                 </View>
             </ScrollView>
             <View style={styles.bottomContainer}>
+                {
+                    showRemoveBtn && (<Pressable onPress={handleOnpressRemoveShippingAddress} style={[styles.btnRemove, !validateAddress() && { backgroundColor: "rgba(0,0,0,0.5)", opacity: 0.4 }]} disabled={!validateAddress()}>
+                        <Text style={{ fontSize: 16, color: "#fa5230", textAlign: "center" }}>Xóa địa chỉ</Text>
+                    </Pressable>)
+                }
                 <Pressable onPress={handleOnpressUpdateAddressUser} style={[styles.btnSave, !validateAddress() && { backgroundColor: "rgba(0,0,0,0.5)", opacity: 0.4 }]} disabled={!validateAddress()}>
                     <Text style={{ fontSize: 16, color: "#fff", textAlign: "center" }}>Hoàn thành</Text>
                 </Pressable>
             </View>
-            <ModalMsg visible={openModalMsg} message={"Địa chỉ đầu tiên sẽ được đặt mặc định"}
+            <ModalMsg visible={openModalMsg} message={msg.current}
                 handleCloseModalMsg={() => setOpenModalMsg(false)}
                 handleOnpressConfirm={() => { setOpenModalMsg(false) }}
                 showBtnNo={false} />
@@ -213,16 +278,24 @@ const styles = StyleSheet.create({
     },
     bottomContainer: {
         marginTop: 8,
-        justifyContent: "center",
+        flexDirection: "row",
+        //justifyContent: "center",
         alignItems: "center",
         backgroundColor: "white",
         padding: 8,
         paddingBottom: 45,
-
+        gap: 10
     },
     btnSave: {
         backgroundColor: "#fa5230",
-        width: "90%",
+        flex: 1,
+        padding: 14,
+        borderRadius: 6
+    },
+    btnRemove: {
+        borderColor: "#fa5230",
+        borderWidth: 1,
+        flex: 1,
         padding: 14,
         borderRadius: 6
     }

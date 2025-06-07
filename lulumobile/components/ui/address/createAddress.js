@@ -110,14 +110,19 @@ const CreateAddress = () => {
             DeviceEventEmitter.emit("event.selectedCityDistrictWard", finalAddress)
             navigation.goBack()
         }
+        else {
+            // Tăng selected tiếp tục chọn khu vực cấp thấp hơn
+            setSelected(selected+1)
+        }
     }
 
     useEffect(() => {
         try {
             setLoading(true)
             console.log(selected, Number(address[selected - 1].id))
-            getDataLocation(selected, Number(address[selected - 1].id))
-
+         //   getDataLocation(selected, Number(address[selected - 1].id))
+            getDataLocation(selected, address[selected - 1].id)
+            
         }
         catch (err) {
             console.log("Fail to get data location ", err)
@@ -171,7 +176,7 @@ const CreateAddress = () => {
                 </View>
 
                 <View style={styles.city(selected)}>
-                    <Pressable onPress={() => setSelected("1")}>
+                    <Pressable onPress={() => handleSelect(CITY)}>
                         <Text style={selected == CITY && { color: "#fa5230" }}>{address[CITY] ? address[CITY].name : "Chọn tỉnh/thành phố"}</Text>
                     </Pressable>
                 </View>
@@ -212,8 +217,8 @@ const CreateAddress = () => {
                         <FlatList
                             data={searchData}
                             renderItem={({ item }) => <Item item={item}
-                                handleOnPress={() => { handleOnpressItem(selected, item.name, item.id) }}
-                                checked={isCheckItem(selected, item.name)} />}
+                                handleOnPress={() => { handleOnpressItem(selected, item.full_name, item.id) }}
+                                checked={isCheckItem(selected, item.full_name)} />}
                             keyExtractor={(item) => item.id}
                         />
                     ) : (<SectionList
@@ -225,7 +230,7 @@ const CreateAddress = () => {
                         removeClippedSubviews={true} // Android optimization
                         keyExtractor={(item, index) => item.id + index}
                         renderItem={({ item }) => (
-                            <Item item={item} handleOnPress={() => { handleOnpressItem(selected, item.name, item.id) }} checked={isCheckItem(selected, item.name)}></Item>
+                            <Item item={item} handleOnPress={() => { handleOnpressItem(selected, item.full_name, item.id) }} checked={isCheckItem(selected, item.full_name)}></Item>
                         )}
                         renderSectionHeader={({ section: { title } }) => (
                             <View style={styles.headerSection}>

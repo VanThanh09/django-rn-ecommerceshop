@@ -51,7 +51,7 @@ function HomeStack({ navigation, route }) {
       />
       <HomeStackNavigator.Screen name="createAddressPage" component={CreateAddress}
         options={({ route, navigation }) => ({
-          headerTitle: () => (<Text style={{ fontSize: 16, fontWeight: "700" }}>Tạo địa chỉ</Text>),
+          headerTitle: () => (<Text style={{ fontSize: 16, fontWeight: "700" }}>Chọn khu vực</Text>),
           headerLeft: () => (<HeaderLeft navigation={navigation} />)
         })}
       />
@@ -73,7 +73,7 @@ function MyTabs() {
       <Tab.Screen name="home"
         component={HomeStack}
         options={({ route }) => {
-          const tabHidden = ['productDetail', 'cartPage', 'checkoutPage', 'newAddressPage', 'createAddressPage'];
+          const tabHidden = ['productDetail', 'cartPage', 'checkoutPage', 'newAddressPage', 'createAddressPage', 'chooseShippingAddressPage'];
           const routeName = getFocusedRouteNameFromRoute(route);
           return {
             tabBarIcon: () => <Icon size={30} source="home" />,

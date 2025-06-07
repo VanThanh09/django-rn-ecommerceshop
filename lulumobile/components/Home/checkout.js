@@ -14,6 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Linking } from 'react-native';
 import ModalMsg from "../utils/modalMsg";
 import { DeviceEventEmitter } from "react-native";
+import ToastMessage from "../ui/productDetail/ToastMessage";
 
 const HeaderCartLeft = ({ navigation }) => {
     const handleGoBack = () => {
@@ -221,11 +222,8 @@ const Checkout = ({ navigation, route }) => {
     const [openModalMsg, setOpenModalMsg] = useState(false)
     //const user = useContext(MyUserContext)
     const [userShippingAddress, setUserShippingAddress] = useState(null)
-    const [currentChooseAddress, setCurrentChooseAddress] = useState(0)
-
-    const getSpecificShippingAddress = (obj, key) => {
-        return { [key]: obj[key] };
-    };
+    const [currentChooseAddress, setCurrentChooseAddress] = useState("0")
+    const [toastVisible, setToastVisible] = useState(false);
 
     const getCheckoutData = async (type) => {
         try {
@@ -310,7 +308,7 @@ const Checkout = ({ navigation, route }) => {
                 payment_method: {
                     method: "OF"
                 },
-                shipping_address: userShippingAddress,
+                shipping_address: userShippingAddress[currentChooseAddress],
                 total_price: checkoutData.total_final_price,
                 products: buildProductsForOrder(),
                 stores: buildStoresForOrder(),
@@ -327,7 +325,9 @@ const Checkout = ({ navigation, route }) => {
                 //console.log("order oFF here we goooo")
 
                 // Navigate qua trang đơn hàng người dùng là xong
-                navigation.replace("index")
+                setToastVisible(true)
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                navigation.replace('index')
             }
             else {
                 Alert.alert("Xảy ra lỗi!", "Tạo đơn hàng thất bại")
@@ -349,7 +349,7 @@ const Checkout = ({ navigation, route }) => {
                     method: "ON",
                     portal: "MOMO"
                 },
-                shipping_address: userShippingAddress,
+                shipping_address: userShippingAddress[currentChooseAddress],
                 order_payment_id: orderId,
                 total_price: checkoutData.total_final_price,
                 products: buildProductsForOrder(),
@@ -471,6 +471,7 @@ const Checkout = ({ navigation, route }) => {
         }
     }
 
+    // Xử lý thanh toán deep link từ momo quay về
     useEffect(() => {
         const handleDeepLink = (event) => {
             const url = event.url || event;
@@ -506,6 +507,7 @@ const Checkout = ({ navigation, route }) => {
         };
     }, [orderId]);
 
+    // Xử lý event emitter
     useEffect(() => {
         // Add the event listener communicate between 2 screen
         const eventListener = DeviceEventEmitter.addListener(
@@ -517,10 +519,29 @@ const Checkout = ({ navigation, route }) => {
             }
         );
 
+        const listenToEventChangeUserShippingAddress = DeviceEventEmitter.addListener(
+            'event.changeUserShippingAddress',
+            // event data is the data is emitted from the event (this case is new index of address)
+            (eventData) => {
+                setCurrentChooseAddress(eventData)
+            }
+        )
+
         return () => {
             eventListener.remove(); // Clean up the listener
+            listenToEventChangeUserShippingAddress.remove()
         };
     }, []);
+
+    // Xử lý hiện thông báo thanh toán thành công và quay về trang chủ
+    // useEffect(() => {
+    //     if (toastVisible) { // Only run when toastVisible becomes true
+    //         const timer = setTimeout(() => {
+    //             navigation.replace("index");
+    //         }, 1000);
+    //         return () => clearTimeout(timer);
+    //     }
+    // }, [toastVisible])
 
     if (loading || checkoutData === null) {
         return (<View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -568,6 +589,12 @@ const Checkout = ({ navigation, route }) => {
             <ModalMsg visible={openModalMsg} message={"Bạn chưa có địa chỉ vui lòng thêm địa chỉ"}
                 handleCloseModalMsg={() => setOpenModalMsg(false)}
                 handleOnpressConfirm={() => { navigation.navigate("newAddressPage", { autoDefault: true }) }} />
+            <ToastMessage
+                message="Thanh toán thành công"
+                iconName={"check"}
+                visible={toastVisible}
+                onHide={() => setToastVisible(false)}
+            />
         </View>
     )
 }
