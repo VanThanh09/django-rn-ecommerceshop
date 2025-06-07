@@ -43,6 +43,14 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
         user = serializer.save()
         Cart.objects.create(user=user, total_quantity=0)
 
+class UserUpdateGenericsView(generics.UpdateAPIView):
+    serializer_class = serializers.UserSerializer
+    permission_classes = [IsCustomerOrSeller]
+
+    def get_object(self):
+        # Get user from request (example using request.user)
+        return self.request.user
+
 # Return list of all product
 class ProductViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = Product.objects.filter(active=True)
@@ -398,10 +406,7 @@ def checkout(request):
         return Response(data={"msg": "Empty"}, status=status.HTTP_200_OK)
     # Response data to client
     data = {}
-    user = {
-        "fullname": request.user.first_name + " " + request.user.last_name,
-        "address": request.user.address
-    }
+    user = serializers.UserSerializer(request.user).data
     data['user'] = user
     data['cart_items'] = []
     cart_detail_set = request.data.get('list_cart_detail')
@@ -440,10 +445,7 @@ def checkout(request):
 def checkout_for_buynow(request):
     # Response data to client
     data = {}
-    user = {
-        "fullname": request.user.first_name + " " + request.user.last_name,
-        "address": request.user.address
-    }
+    user = serializers.UserSerializer(request.user).data
     data['user'] = user
     data['cart_items'] = []
     products_same_store = {}
@@ -451,10 +453,13 @@ def checkout_for_buynow(request):
     products_same_store['store'] = store_serializer.data
     product_variant = ProductVariant.objects.get(pk=request.data.get('product_variant'))
     pv_serializer = serializers.ProductVariantWithProductNameSerializer(product_variant)
-    products_same_store['product_variants'] = [pv_serializer.data]
+    products_same_store['product_variants'] = [{
+        'product_variant': pv_serializer.data,
+        'quantity': request.data.get('quantity')
+    }]
     total_price = 0
     for p in products_same_store['product_variants']:
-        total_price += request.data.get('quantity') * p.get('price')
+        total_price += request.data.get('quantity') * p.get('product_variant').get('price')
     total_quantity = request.data.get('quantity')
     products_same_store['total_price'] = total_price
     products_same_store['total_quantity'] = total_quantity
@@ -669,12 +674,15 @@ def updateLikeComments(request):
 
 ######################################################## ORDER #####################################################
 
-def createOrder(customer,total_price,payment_method,paid):
+def createOrder(customer,total_price,payment_method,paid, shipping_address):
     return Order.objects.create(customer=customer,payment_method=payment_method
-                                       ,total_price=total_price,paid=paid)
+                                       ,total_price=total_price,paid=paid,shipping_address=shipping_address)
 def createOrderDetail(order, products):
     for p in products:
-        store = ProductVariant.objects.get(pk=p.get('product_variant_id')).product.store
+        variant = ProductVariant.objects.get(pk=p.get('product_variant_id'))
+        store = variant.product.store
+        variant.quantity = variant.quantity - p.get('quantity')
+        variant.save()
         OrderDetail.objects.create(order=order,product_variant_id=p.get('product_variant_id'),quantity=p.get('quantity'),store=store)
 
 def removeCartDetail(cart_detail_list):
@@ -728,8 +736,9 @@ class OrderViewSet(viewsets.ViewSet,generics.CreateAPIView, generics.RetrieveUpd
            order_total_price = request.data.get('total_price')
            paid = request.data.get('paid')
            cart_detail_list = request.data.get('cart_detail_list')
+           shipping_address = request.data.get('shipping_address')
 
-           newOrder = createOrder(customer=request.user,total_price=order_total_price,payment_method=payment_method.get('method'),paid=paid)
+           newOrder = createOrder(customer=request.user,total_price=order_total_price,payment_method=payment_method.get('method'),paid=paid,shipping_address=shipping_address)
            createOrderDetail(products=products,order=newOrder)
            removeCartDetail(cart_detail_list)
 
@@ -743,7 +752,7 @@ class OrderViewSet(viewsets.ViewSet,generics.CreateAPIView, generics.RetrieveUpd
                # Momo response kết quả xác nhận xử lý yeeu cầu tạo thanh toán
                MomoResponse = callApiMoMo(data)
 
-               if (MomoResponse.get('resultCode') == 0):\
+               if (MomoResponse.get('resultCode') == 0):
                    return Response(data={'result_code': 0,'deeplink': MomoResponse.get('deeplink')
                        , 'msg':"Gửi yêu cầu thanh toán thành công"}, status=status.HTTP_200_OK)
 
@@ -786,12 +795,13 @@ def callbackMoMo(request):
     order_total_price = data.get('total_price')
     cart_detail_list = data.get('cart_detail_list')
     user_id = data.get('user_id')
+    shipping_address = data.get('shipping_address')
     # Khach hang thanh toan thanh cong
     if (resultCode == 0):
         paid = True
         # Tạo order detail, rm cart detail ...
         newOrder = Order.objects.create(customer_id=user_id, total_price=order_total_price,
-                                        payment_method=payment_method.get('method'), paid=paid)
+                                        payment_method=payment_method.get('method'), paid=paid, shipping_address=shipping_address)
         createOrderDetail(products=products, order=newOrder)
         removeCartDetail(cart_detail_list)
         # Tao payment
@@ -861,5 +871,14 @@ def create_store_rating(request):
     new_store_rating = store_rating_serializer.save(user=request.user)
     return Response(serializers.StoreRatingSerializer(new_store_rating).data , status=status.HTTP_201_CREATED)
 
+@api_view(['POST'])
+@permission_classes([IsCustomerOrSeller])
+def verify_isPaid_orderId(request):
+    order_id = request.data.get('order_id')
+    payment = Payment.objects.filter(order_payment_id=order_id).first()
+    if (payment):
+        return Response({'paid': payment.payment_status}, status=status.HTTP_200_OK)
+    else:
+        return Response({'paid': False}, status=status.HTTP_200_OK)
 
 

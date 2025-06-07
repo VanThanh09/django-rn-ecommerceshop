@@ -11,6 +11,8 @@ export default (current, action) => {
             return action.payload;
         case "logout":
             return null;
+        case "updateAddress":
+            return action.payload
         default:
             return current;
     }

@@ -112,7 +112,7 @@ const Login = ({ route }) => {
 
                 const token = await AsyncStorage.getItem('token');
                 let u = await authApis(token).get(endpoints['current_user']);
-
+                console.log("user data from login ", u.data)
                 dispatch({
                     "type": "login",
                     "payload": u.data

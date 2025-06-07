@@ -13,6 +13,7 @@ import ViewMoreText from "../utils/ViewMoreText";
 import TabBarProduct from "../ui/productDetail/tabBar";
 import BottomModal from "../ui/productDetail/BottomModal";
 import ModalProductContent from "../ui/productDetail/ModalProductContent";
+import ModalForBuyNowContent from "../ui/productDetail/ModalForBuyNowContent";
 
 function formatNumber(value) {
     if (value >= 1_000_000) {
@@ -58,16 +59,6 @@ const ProductDetail = ({ route }) => {
     const [openModalCart, setOpenModalCart] = useState(false)
     const [openModalBuyNow, setOpenModalBuyNow] = useState(false)
     const [refreshing, setRefreshing] = useState(false)
-
-    //console.log("from productDetail  ",navigation.getState())
-    useEffect(() => {
-        console.log("pro mounted")
-
-        return () => {
-            console.log("pro unmounted")
-        }
-    },[])
-
 
     const addPendingAction = (actionType, payload) => {
         const currentAction = {
@@ -173,7 +164,6 @@ const ProductDetail = ({ route }) => {
 
         fetchData().finally(() => setRefreshing(false))
     }, [])
-
     /////////////////////////////////////////////////////////////// Modal  ///////////////////////////////////////////////////////////
     const pathOptions = useRef([])
     const mainAttr = useRef(null)
@@ -261,6 +251,10 @@ const ProductDetail = ({ route }) => {
         loadProductTop5comments().catch(err => console.log("Fail to load 5 comments", err))
     }, [productId]);
 
+    if (product === null) {
+        return null
+    }
+
     return (
         <SafeAreaView style={{ flex: 1 }}>
             {product === null ?
@@ -325,30 +319,41 @@ const ProductDetail = ({ route }) => {
                                 </View>
 
                             </ScrollView>
-                            {
-                                product && (
-                                    <BottomModal visible={openModalCart} handleOnbackDrop={() => { setOpenModalCart(false) }}>
-                                        <ModalProductContent
-                                            product={product}
-                                            pathOptions={pathOptions}
-                                            handleOnPressClose={() => setOpenModalCart(false)}
-                                            mainAttr={mainAttr}
-                                            mainAttrDisable={mainAttrDisable}
-                                            selected={selected}
-                                            handleSelected={handleSelected}
-                                            disableAttr={disableAttr}
-                                            handleSetDisableAttr={handleSetDisableAttr}
-                                            handleSetDisableAttrWithValue={handleSetDisableAttrWithValue}
-                                            variantId={variantId}
-                                            handleSetVariantId={handleSetVariantId}
-                                        ></ModalProductContent>
-                                        {/* <ModalMessage
-                                            visible={openModalMsg}
-                                            handleCloseModalMsg={handleCloseModalMsg}
-                                            quantity={3}
-                                        /> */}
-                                    </BottomModal>
-                                )}
+                           
+                                <BottomModal visible={openModalCart} handleOnbackDrop={() => { setOpenModalCart(false) }}>
+                                    <ModalProductContent
+                                        product={product}
+                                        pathOptions={pathOptions}
+                                        handleOnPressClose={() => setOpenModalCart(false)}
+                                        mainAttr={mainAttr}
+                                        mainAttrDisable={mainAttrDisable}
+                                        selected={selected}
+                                        handleSelected={handleSelected}
+                                        disableAttr={disableAttr}
+                                        handleSetDisableAttr={handleSetDisableAttr}
+                                        handleSetDisableAttrWithValue={handleSetDisableAttrWithValue}
+                                        variantId={variantId}
+                                        handleSetVariantId={handleSetVariantId}
+                                    ></ModalProductContent>
+                                </BottomModal>
+
+                                <BottomModal visible={openModalBuyNow} handleOnbackDrop={() => { setOpenModalBuyNow(false) }}>
+                                    <ModalForBuyNowContent
+                                        product={product}
+                                        pathOptions={pathOptions}
+                                        handleOnPressClose={() => setOpenModalBuyNow(false)}
+                                        mainAttr={mainAttr}
+                                        mainAttrDisable={mainAttrDisable}
+                                        selected={selected}
+                                        handleSelected={handleSelected}
+                                        disableAttr={disableAttr}
+                                        handleSetDisableAttr={handleSetDisableAttr}
+                                        handleSetDisableAttrWithValue={handleSetDisableAttrWithValue}
+                                        variantId={variantId}
+                                        handleSetVariantId={handleSetVariantId}
+                                    ></ModalForBuyNowContent>
+                                </BottomModal>
+                            
                             <SafeAreaView>
                                 <TabBarProduct style={styles.tabBarProduct} price={price}
                                     openModalCart={() => { setOpenModalCart(true) }}

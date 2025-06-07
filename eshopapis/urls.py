@@ -30,4 +30,6 @@ urlpatterns = [
     path('update_like_comments/',views.updateLikeComments),
     path('callbackMoMo/',views.callbackMoMo),
     path('create_rating_store/', views.create_store_rating),
+    path('verify_isPaid_orderId/',views.verify_isPaid_orderId),
+    path('patch_user_info/', views.UserUpdateGenericsView.as_view()),
 ]

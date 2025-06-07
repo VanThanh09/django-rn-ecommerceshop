@@ -1,16 +1,21 @@
-import { View, Text, Image, StyleSheet, Pressable, TouchableWithoutFeedback, Keyboard, RefreshControl } from "react-native"
+import { View, Text, Image, StyleSheet, Pressable, RefreshControl, Alert } from "react-native"
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ActivityIndicator } from "react-native-paper";
-import { useState, useContext, useLayoutEffect, useEffect } from "react";
+import { useState, useContext, useLayoutEffect, useEffect, useRef } from "react";
 import { ScrollView } from "react-native-gesture-handler";
 import MomoIcon from "../utils/momoIcon";
-import CheckBox from "react-native-check-box";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authApis, endpoints } from "../../configs/Apis";
-import { RadioButton } from 'react-native-paper';
+import { CartContext, MyUserContext } from "../../configs/MyContext";
+import { Cart_Action_Type } from "../../reducers/CartReducer";
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
+import { Linking } from 'react-native';
+import ModalMsg from "../utils/modalMsg";
+import { DeviceEventEmitter } from "react-native";
 
-const HeaderCartLeft = ({ navigation, routeParams }) => {
+const HeaderCartLeft = ({ navigation }) => {
     const handleGoBack = () => {
         navigation.goBack()
     }
@@ -121,7 +126,7 @@ const storeItemCardStyles = StyleSheet.create({
 const PaymentMethod = ({ methodChoose, changeMethodChoose }) => {
     return (
         <View style={paymentMethodStyles.container}>
-            <Text style={{ fontSize: 14, fontWeight: "500"}}>Phương thức thanh toán</Text>
+            <Text style={{ fontSize: 14, fontWeight: "500" }}>Phương thức thanh toán</Text>
             <Pressable style={paymentMethodStyles.row} onPress={() => changeMethodChoose("cash")}>
                 <MaterialCommunityIcons name="cash" size={30} color="#fa5230" />
                 <Text>Thanh toán khi nhận hàng</Text>
@@ -206,10 +211,21 @@ const detailCheckoutStyles = StyleSheet.create({
 
 
 const Checkout = ({ navigation, route }) => {
+    const { cart, cartDispatch } = useContext(CartContext)
     const { dataToCheckout, type } = route.params || {}
     const [checkoutData, setCheckoutData] = useState(null)
     const [loading, setLoading] = useState(false)
     const [methodChoose, setMethodChoose] = useState("cash")
+    const cartBasic = useRef(null)
+    const [orderId, setOrderId] = useState(null)
+    const [openModalMsg, setOpenModalMsg] = useState(false)
+    //const user = useContext(MyUserContext)
+    const [userShippingAddress, setUserShippingAddress] = useState(null)
+    const [currentChooseAddress, setCurrentChooseAddress] = useState(0)
+
+    const getSpecificShippingAddress = (obj, key) => {
+        return { [key]: obj[key] };
+    };
 
     const getCheckoutData = async (type) => {
         try {
@@ -221,8 +237,9 @@ const Checkout = ({ navigation, route }) => {
                 // buy now
                 res = await authApis(token).post(endpoints["checkoutForBuyNow"], dataToCheckout)
             }
-            console.log("checkout data", res.data)
+            //console.log("checkout data", res.data)
             setCheckoutData(res.data)
+            setUserShippingAddress(res.data.user.address)
         } catch (err) {
             console.log("Fail to load check out data ", err)
             throw err
@@ -230,7 +247,7 @@ const Checkout = ({ navigation, route }) => {
     }
 
     const getWardDistrictCity = () => {
-        let address = checkoutData.user.address
+        let address = userShippingAddress[currentChooseAddress]
         let WardDistrictCity = ""
         for (let i = 3; i > 0; i--) {
             if (i != 3)
@@ -238,12 +255,179 @@ const Checkout = ({ navigation, route }) => {
 
             WardDistrictCity += address[String(i)]
         }
+        console.log("WardDistrictCity ", WardDistrictCity)
         return WardDistrictCity
     }
 
     const changeMethodChoose = (value) => {
         setMethodChoose(value)
     }
+
+    const buildCartDetailListForOrder = () => {
+        if (type == "cart") {
+            return dataToCheckout.list_cart_detail
+        }
+        else
+            return []
+    }
+
+    const buildProductsForOrder = () => {
+        if (type == "cart") {
+            let listProductVariant = dataToCheckout.list_product_variant
+            // Lấy ra quantity của variantId tương ứng
+            let products = listProductVariant.reduce((pros, variantId) => {
+                pros.push({
+                    product_variant_id: variantId,
+                    quantity: cartBasic.current[variantId]
+                })
+                return pros
+            }, [])
+            return products
+        } else {
+            return [{
+                product_variant_id: dataToCheckout.product_variant,
+                quantity: dataToCheckout.quantity
+            }]
+        }
+    }
+
+    const buildStoresForOrder = () => {
+        if (type == "cart") {
+            return checkoutData.cart_items.reduce((stores, cartItem) => {
+                stores.push(cartItem.store.id)
+                return stores
+            }, [])
+        }
+        else {
+            return [dataToCheckout.store]
+        }
+    }
+
+    const handleOrderOffMethod = async () => {
+        try {
+            let dataToCreateOrder = {
+                paid: false,
+                payment_method: {
+                    method: "OF"
+                },
+                shipping_address: userShippingAddress,
+                total_price: checkoutData.total_final_price,
+                products: buildProductsForOrder(),
+                stores: buildStoresForOrder(),
+                cart_detail_list: buildCartDetailListForOrder()
+            }
+
+            const token = await AsyncStorage.getItem("token")
+            let res = await authApis(token).post(endpoints['createOrder'], dataToCreateOrder)
+            console.log("res from create order ", res.data)
+            // Nếu tạo đơn hàng thành công thì update cart
+            if (res.data.result) {
+                let updateCart = await authApis(token).get(endpoints.cart_basic_info);
+                cartDispatch({ type: Cart_Action_Type.UPDATE_CART, payload: updateCart.data })
+                //console.log("order oFF here we goooo")
+
+                // Navigate qua trang đơn hàng người dùng là xong
+                navigation.replace("index")
+            }
+            else {
+                Alert.alert("Xảy ra lỗi!", "Tạo đơn hàng thất bại")
+            }
+        }
+        catch (err) {
+            console.log("Fail to create order ", err)
+            throw err
+        }
+    }
+
+    const handleOrderOnMethod = async () => {
+        try {
+            let orderId = uuidv4()
+            setOrderId(orderId)
+            let dataToCreateOrder = {
+                paid: false,
+                payment_method: {
+                    method: "ON",
+                    portal: "MOMO"
+                },
+                shipping_address: userShippingAddress,
+                order_payment_id: orderId,
+                total_price: checkoutData.total_final_price,
+                products: buildProductsForOrder(),
+                stores: buildStoresForOrder(),
+                cart_detail_list: buildCartDetailListForOrder()
+            }
+
+            const token = await AsyncStorage.getItem("token")
+            let res = await authApis(token).post(endpoints['createOrder'], dataToCreateOrder)
+            console.log("res from create order ", res.data)
+            // Nếu tạo đơn hàng thành công thì update cart
+            if (res.data.result_code == 0) {
+                console.log("deeelink ", res.data.deeplink)
+                const canOpenMoMo = await Linking.canOpenURL("momo://");
+                await Linking.openURL(res.data.deeplink)
+                // if (canOpenMoMo) {
+
+                // } else {
+                //     Linking.openURL("https://momo.vn")
+                // }
+            }
+        }
+        catch (err) {
+            console.log("Fail to create order on", err)
+            throw err
+        }
+    }
+
+    const handleOnpressBtnOrder = () => {
+        try {
+            if (Object.keys(userShippingAddress).length > 0) {
+                if (methodChoose == "cash") {
+                    console.log("process create off order ...")
+                    handleOrderOffMethod()
+                }
+                else {
+                    console.log("process create on order ...")
+                    handleOrderOnMethod()
+                }
+            } else {
+                setOpenModalMsg(true)
+            }
+        }
+        catch (err) {
+            console.log("Fail to create order ", err)
+        }
+    }
+
+    const handleChangeUserShippingAddress = () => {
+        console.log("go to shipping address page")
+        if (Object.keys(userShippingAddress).length > 0) {
+            navigation.navigate("chooseShippingAddressPage", { shippingAddress: userShippingAddress, currentChoose: currentChooseAddress })
+        } else {
+            setOpenModalMsg(true)
+        }
+    }
+
+    const handleEventUpdateUserShippingAddress = (eventData) => {
+        try {
+            setLoading(true)
+            getCheckoutData(type)
+        }
+        catch (err) {
+            console.log("Fail to load check out data ", err)
+        }
+        finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        cartBasic.current = cart.product_variants.reduce((acc, variant) => {
+            acc[variant.variant_id] = variant.quantity
+            return acc
+        }, {})
+
+    }, [cart])
+
     // Loading checkoutdata for render
     useEffect(() => {
         try {
@@ -261,9 +445,82 @@ const Checkout = ({ navigation, route }) => {
     useLayoutEffect(() => {
         navigation.setOptions({
             headerTitle: () => (<Text style={{ fontSize: 16, fontWeight: "700" }}>Thanh toán</Text>),
-            headerLeft: () => (<HeaderCartLeft navigation={navigation} routeParams={route.params} />),
+            headerLeft: () => (<HeaderCartLeft navigation={navigation} />),
         });
     }, [navigation, route])
+
+    const verifyIsPaid = async (orderId) => {
+        try {
+            let maxCall = 5
+            let paid = false
+            const token = await AsyncStorage.getItem("token")
+            let res = null
+
+            for (let i = 0; i < maxCall; i++) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                res = await authApis(token).post(endpoints['verifyIsPaidOrderId'], { order_id: orderId })
+                paid = res.data.paid
+                if (paid) {
+                    return true
+                }
+            }
+            return false
+        }
+        catch (err) {
+            console.log("Fail to verify orderId ", err)
+        }
+    }
+
+    useEffect(() => {
+        const handleDeepLink = (event) => {
+            const url = event.url || event;
+            //console.log('Deep Link URL:', url);
+            // Đã quay về => gọi API tới backend kiểm tra
+
+            if (orderId && url.includes("orderId")) {
+                setLoading(true)
+                setTimeout(() => {
+                    verifyIsPaid(orderId).then(paid => {
+                        if (paid) {
+                            //console.log("Thanh toan thanh cong hehehehe")
+                            setLoading(false)
+                            navigation.replace("index")
+                        }
+                        else {
+                            console.log("Thanh toan co loi ~~")
+                        }
+                    })
+                }, 3000)
+            }
+        };
+
+        // Đăng ký lắng nghe sự kiện xem có deep link nào mở app của mình hay ko
+        const subscription = Linking.addEventListener('url', handleDeepLink);
+
+        // Kiểm tra nếu app được mở từ Deep Link (khi app ở trạng thái killed)
+        Linking.getInitialURL().then(handleDeepLink);
+
+        // Cleanup: Hủy lắng nghe khi component unmount
+        return () => {
+            subscription.remove();
+        };
+    }, [orderId]);
+
+    useEffect(() => {
+        // Add the event listener communicate between 2 screen
+        const eventListener = DeviceEventEmitter.addListener(
+            "event.updateUserShippingAddress",
+            (eventData) => {
+                // Handle the event data
+                console.log("envent data ", eventData)
+                handleEventUpdateUserShippingAddress(eventData);
+            }
+        );
+
+        return () => {
+            eventListener.remove(); // Clean up the listener
+        };
+    }, []);
 
     if (loading || checkoutData === null) {
         return (<View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -275,17 +532,20 @@ const Checkout = ({ navigation, route }) => {
     return (
         <View style={styles.checkoutContainer}>
             <ScrollView style={styles.scrollView} stickyHeaderIndices={[0]}>
-                <Pressable style={styles.userInfo} onPress={() => { console.log("Change infor user address") }}>
+                <Pressable style={styles.userInfo} onPress={handleChangeUserShippingAddress}>
                     <View>
                         <Icon name="location-on" size={20} color="#FF5722" />
                     </View>
                     <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 14, fontWeight: "600", marginBottom: 6 }}>{checkoutData.user.fullname}</Text>
                         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                            <Text style={{ marginBottom: 3 }}>{checkoutData.user.address["4"]}</Text>
+                            {
+                                Object.keys(userShippingAddress).length > 0 ? <Text style={{ marginBottom: 3 }}>{userShippingAddress[currentChooseAddress]["4"]}</Text> :
+                                    <Text style={{ color: "#fa5230" }}>Chọn địa chỉ</Text>
+                            }
                             <Icon name="chevron-right" size={24} color="#aaa" />
                         </View>
-                        <Text>{getWardDistrictCity()}</Text>
+                        {Object.keys(userShippingAddress).length > 0 && <Text>{getWardDistrictCity()}</Text>}
                     </View>
                 </Pressable>
                 {
@@ -301,10 +561,13 @@ const Checkout = ({ navigation, route }) => {
                     {checkoutData.total_final_price.toLocaleString("vi-VN")}
                 </Text>
                 </Text>
-                <Pressable style={styles.btnOrder}>
+                <Pressable style={styles.btnOrder} onPress={handleOnpressBtnOrder}>
                     <Text style={{ color: "white" }}>Đặt hàng</Text>
                 </Pressable>
             </View>
+            <ModalMsg visible={openModalMsg} message={"Bạn chưa có địa chỉ vui lòng thêm địa chỉ"}
+                handleCloseModalMsg={() => setOpenModalMsg(false)}
+                handleOnpressConfirm={() => { navigation.navigate("newAddressPage", { autoDefault: true }) }} />
         </View>
     )
 }
@@ -349,3 +612,8 @@ const styles = StyleSheet.create({
         marginLeft: "auto"
     }
 })
+
+
+// Done thanh toán
+
+// Next: Địa chỉ here we goooo

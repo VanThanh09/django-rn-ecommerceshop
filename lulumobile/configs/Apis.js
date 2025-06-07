@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = 'https://0d82-171-252-155-237.ngrok-free.app';
+const BASE_URL = 'https://42c1-171-252-155-237.ngrok-free.app';
 
 export const endpoints = {
     'products': '/products/',
@@ -21,7 +21,11 @@ export const endpoints = {
     'removeCartDetail': (cartDetailId) => `/cart-detail/${cartDetailId}/`,
     'patchCartDetail': (cartDetailId) => `/cart-detail/${cartDetailId}/`,
     'checkout': '/checkout/',
-    'checkoutForBuyNow': '/checkout/quick_buy/'
+    'checkoutForBuyNow': '/checkout/quick_buy/',
+    'createOrder': '/orders/',
+    'verifyIsPaidOrderId': '/verify_isPaid_orderId/',
+    'getLocationOfVietNam': (A, B) => `https://esgoo.net/api-tinhthanh/${A}/${B}.htm`,
+    'updateUserInfo': '/patch_user_info/'
 };
 
 export const authApis = (token) => {

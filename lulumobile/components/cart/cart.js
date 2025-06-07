@@ -230,7 +230,7 @@ const Cart = ({ navigation, route }) => {
             if (tickCarts.has(cartDetail)) {
                 listVariantId.push(cartProductsBasic[cartDetail].variantId)
             }
-            console.log("list variant id ", listVariantId)
+            //console.log("list variant id ", listVariantId)
             return listVariantId
         }, [])
     }

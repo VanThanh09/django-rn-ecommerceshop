@@ -17,8 +17,8 @@ def callApiMoMo(data):
     accessKey = "F8BBA842ECF85"
     secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
     orderInfo = "pay with MoMo"
-    redirectUrl = "https://webhook.site/b3088a6a-2d17-4f8d-a383-71389a6c600b"
-    ipnUrl = "https://db60-222-253-45-135.ngrok-free.app/callbackMoMo/"
+    redirectUrl = "exp://192.168.1.9:8081/--/--/"
+    ipnUrl = "https://42c1-171-252-155-237.ngrok-free.app/callbackMoMo/"
     amount = str(data.get('total_price'))
     orderId = data.get('order_payment_id')
     requestId = str(uuid.uuid4())

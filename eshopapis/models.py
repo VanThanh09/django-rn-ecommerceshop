@@ -128,6 +128,7 @@ class Order(models.Model):
     total_price=models.FloatField(default=0)
     customer=models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="customer_orders")
     paid = models.BooleanField(default=False)
+    shipping_address = models.JSONField(null=True, default=dict)
 
 class OrderDetail(models.Model):
     class OrderStatus(models.TextChoices):

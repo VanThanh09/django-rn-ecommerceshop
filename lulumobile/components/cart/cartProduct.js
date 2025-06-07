@@ -117,19 +117,23 @@ const CartProduct = ({ cartProduct, isFixButtonPressed, toggleTickCart, handleSe
 
     useEffect(() => {
         Animated.timing(translateX, {
-            toValue: isFixButtonPressed || isShift ? -180 : 0,
+            toValue: isShift ? -180 : 0,
             duration: 400,
             easing: Easing.bezier(0.25, 0.1, 0.25, 1),
             useNativeDriver: true
         }).start(),
             Animated.timing(widthRemoveSimilarBtn, {
-                toValue: isFixButtonPressed || isShift ? 170 : 0,
+                toValue: isShift ? 170 : 0,
                 duration: 400,
                 easing: Easing.bezier(0.25, 0.1, 0.25, 1),
                 useNativeDriver: false
             }).start()
 
-    }, [isFixButtonPressed, isShift])
+    }, [isShift])
+
+    useEffect(() => {
+        setIsShift(isFixButtonPressed)
+    }, [isFixButtonPressed])
 
     // Debounce
     useEffect(() => {
