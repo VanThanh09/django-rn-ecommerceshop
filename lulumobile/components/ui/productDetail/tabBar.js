@@ -22,6 +22,15 @@ const TabBarProduct = ({ price, openModalCart, openModalBuyNow, storeOwner }) =>
                         nestedScreen: nestedScreen, previousRoute: route.name,
                         prevRouteParams: route.params
                     },
+                    // Màn hình muốn chuyển tới sau loginAdd commentMore actions
+                    screenAfterLogin: {
+                        nestedScreen: "home",
+                        route: "productDetail",
+                        // Params để quay trở về
+                        params: {
+                            ...route.params
+                        }
+                    }
                 }
             })
         }
@@ -45,6 +54,15 @@ const TabBarProduct = ({ price, openModalCart, openModalBuyNow, storeOwner }) =>
                         nestedScreen: nestedScreen, previousRoute: route.name,
                         prevRouteParams: route.params
                     },
+                    // Màn hình muốn chuyển tới sau loginAdd commentMore actions
+                    screenAfterLogin: {
+                        nestedScreen: "home",
+                        route: "productDetail",
+                        // Params để quay trở về
+                        params: {
+                            ...route.params
+                        }
+                    }
                 }
             })
         }
@@ -61,6 +79,15 @@ const TabBarProduct = ({ price, openModalCart, openModalBuyNow, storeOwner }) =>
                         nestedScreen: nestedScreen, previousRoute: route.name,
                         prevRouteParams: route.params
                     },
+                    // Màn hình muốn chuyển tới sau loginAdd commentMore actions
+                    screenAfterLogin: {
+                        nestedScreen: "home",
+                        route: "productDetail",
+                        // Params để quay trở về
+                        params: {
+                            ...route.params
+                        }
+                    }
                 }
             })
         }

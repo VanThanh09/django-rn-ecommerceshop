@@ -1,8 +1,9 @@
 // ToastMessage.
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useEffect, useRef } from 'react';
+import Icon from 'react-native-vector-icons/FontAwesome';
 
-const ToastMessage = ({ message, visible, onHide }) => {
+const ToastMessage = ({ message, iconName, visible, onHide }) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -18,7 +19,8 @@ const ToastMessage = ({ message, visible, onHide }) => {
                     toValue: 0,
                     duration: 200,
                     useNativeDriver: true
-                })
+                }),
+                Animated.delay(200)
             ]).start(() => {
                 onHide(); // ẩn sau animation
             });
@@ -30,7 +32,8 @@ const ToastMessage = ({ message, visible, onHide }) => {
     return (
         <Animated.View style={[styles.toastContainer, { opacity: fadeAnim }]}>
             <View style={styles.toastBox}>
-                <Text style={styles.toastText}>✔️ {message}</Text>
+                <Icon name={iconName} style={styles.icon} size={30} color="white" />
+                <Text style={styles.toastText}>{message}</Text>
             </View>
         </Animated.View>
     );
@@ -41,18 +44,25 @@ export default ToastMessage;
 const styles = StyleSheet.create({
     toastContainer: {
         position: 'absolute',
-        top: '45%',
+        top: '35%',
         alignSelf: 'center',
         zIndex: 1000,
     },
     toastBox: {
-        backgroundColor: 'black',
-        paddingVertical: 10,
+        backgroundColor: 'rgba(0,0,0,0.8)',
         paddingHorizontal: 20,
         borderRadius: 20,
+        width: "100%",
+        alignSelf: "center"
+    },
+    icon: {
+        paddingTop: 25,
+        alignSelf: "center"
     },
     toastText: {
         color: 'white',
         fontSize: 14,
+        paddingTop: 10,
+        paddingBottom: 20
     }
 });

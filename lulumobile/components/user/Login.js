@@ -162,7 +162,7 @@ const Login = ({ route }) => {
                         if (state.routes.length === 1 && state.routes[0].name === 'login') {
                             return CommonActions.reset({
                                 index: 0,
-                                routes: [{ name: 'index' }], // Fallback to index screen
+                                routes: [{ name: 'profileMain' }], // Fallback to index screen
                             });
                         }
 

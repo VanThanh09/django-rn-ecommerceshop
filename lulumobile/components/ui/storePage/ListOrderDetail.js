@@ -19,7 +19,7 @@ const ListOrderDetail = ({ handlePressChat = () => { }, orderDetail, handleCance
     const [loading, setLoading] = useState(false);
 
     const pick = async () => {
-        if (images.length >= 5) {
+        if (images.length >= 3) {
             Alert.alert("Thông báo", "Tối đa 3 ảnh !");
         } else {
             let { status } =

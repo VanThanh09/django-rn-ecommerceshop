@@ -149,13 +149,23 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
             return Response({'detail': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
+
+class UserUpdateGenericsView(generics.UpdateAPIView):
+    serializer_class = serializers.UserSerializer
+    permission_classes = [perms.IsCustomerOrSeller]
+
+    def get_object(self):
+        # Get user from request (example using request.user)
+        return self.request.user
+
+
 class CategoryViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Category.objects.all()
     serializer_class = serializers.CategorySerializer
 
 
 # Return list of all product
-class ProductViewSet(viewsets.ViewSet, generics.ListAPIView):
+class ProductViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = Product.objects.filter(active=True).order_by('id')
     serializer_class = serializers.ProductSerializer
     pagination_class = paginators.ProductPage
@@ -606,7 +616,7 @@ def get_products_detail_in_cart(request):
     for pvar in cart.products.all():
         stores.add(pvar.product.store)
     if not stores:
-        return Response(data={"msg": "Empty Cart !!!"}, status=status.HTTP_200_OK)
+        return Response(data=[], status=status.HTTP_200_OK)
     # Response data to client
     data = []
     for store in stores:
@@ -676,10 +686,7 @@ def checkout(request):
         return Response(data={"msg": "Empty"}, status=status.HTTP_200_OK)
     # Response data to client
     data = {}
-    user = {
-        "fullname": request.user.first_name + " " + request.user.last_name,
-        "address": request.user.address
-    }
+    user = serializers.UserSerializer(request.user).data
     data['user'] = user
     data['cart_items'] = []
     cart_detail_set = request.data.get('list_cart_detail')
@@ -694,20 +701,85 @@ def checkout(request):
         pv_serializer = serializers.CartProductVariantSerializer(product_variants, many=True)
         products_same_store['product_variants'] = pv_serializer.data
         total_price = 0
+        total_quantity = 0
         for p in products_same_store['product_variants']:
             total_price += p.get('total_price')
-        total_quantity = len(products_same_store['product_variants'])
+            total_quantity += p.get('quantity')
         products_same_store['total_price'] = total_price
         products_same_store['total_quantity'] = total_quantity
         data['cart_items'].append(products_same_store)
 
-        data['payment_method'] = ['ONLINE', 'OFFLINE']
-        total_price = 0
+        total_final_price = 0
+        total_final_quantity = 0
         for item in data['cart_items']:
-            total_price += item.get('total_price')
-        data['total_price'] = total_price
+            total_final_price += item.get('total_price')
+            total_final_quantity += item.get('total_quantity')
+        data['total_final_price'] = total_final_price
+        data['total_final_quantity'] = total_final_quantity
 
     return Response(data=data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([perms.IsCustomerOrSeller])
+def checkout_for_buynow(request):
+    # Response data to client
+    data = {}
+    user = serializers.UserSerializer(request.user).data
+    data['user'] = user
+    data['cart_items'] = []
+    products_same_store = {}
+    store_serializer = serializers.CartStoreSerializer(Store.objects.get(pk=request.data.get('store')))
+    products_same_store['store'] = store_serializer.data
+    product_variant = ProductVariant.objects.get(pk=request.data.get('product_variant'))
+    pv_serializer = serializers.ProductVariantWithProductNameSerializer(product_variant)
+    products_same_store['product_variants'] = [{
+        'product_variant': pv_serializer.data,
+        'quantity': request.data.get('quantity')
+    }]
+    total_price = 0
+    for p in products_same_store['product_variants']:
+        total_price += request.data.get('quantity') * p.get('product_variant').get('price')
+    total_quantity = request.data.get('quantity')
+    products_same_store['total_price'] = total_price
+    products_same_store['total_quantity'] = total_quantity
+    data['cart_items'].append(products_same_store)
+
+    total_final_price = 0
+    total_final_quantity = 0
+    for item in data['cart_items']:
+        total_final_price += item.get('total_price')
+        total_final_quantity += item.get('total_quantity')
+    data['total_final_price'] = total_final_price
+    data['total_final_quantity'] = total_final_quantity
+
+    return Response(data=data, status=status.HTTP_200_OK)
+
+
+def get_cart_products_data(user):
+    stores = set()
+    cart = user.cart
+    change_cart_detail_active(cart=cart)
+
+    for pvar in cart.products.all():
+        stores.add(pvar.product.store)
+
+    if not stores:
+        return []
+
+    data = []
+    for store in stores:
+        products_same_store = {}
+        store_serializer = serializers.CartStoreSerializer(store)
+        products_same_store['store'] = store_serializer.data
+
+        product_variants = cart.cartdetail_set.filter(product_variant__product__store=store)
+        pv_serializer = serializers.CartProductVariantSerializer(product_variants, many=True)
+        products_same_store['product_variants'] = pv_serializer.data
+
+        data.append(products_same_store)
+
+    return data
 
 
 # CartDetail Create Partial-Update Delete
@@ -719,11 +791,49 @@ class CartDetailViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.Updat
     def perform_create(self, serializer):
         serializer.save(cart=self.request.user.cart)
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+
+        return Response(get_cart_products_data(request.user), status=status.HTTP_200_OK)
+
     def perform_destroy(self, instance):
         # Before delete a cart detail cart.total_quantity --
         instance.cart.total_quantity -= 1
         instance.cart.save()
         instance.delete()
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
+
+        return Response(get_cart_products_data(request.user), status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['delete'])
+    def bulk_delete(self, request):
+        cart_detail_ids = request.data
+        cart_details = CartDetail.objects.filter(id__in=cart_detail_ids)
+
+        for cart_detail in cart_details:
+            self.check_object_permissions(request, cart_detail)
+
+        if cart_details:
+            cart = cart_details[0].cart  # assume all items are in same cart
+            cart.total_quantity -= len(cart_details)
+            cart.save()
+
+        for cart_detail in cart_details:
+            cart_detail.delete()
+
+        return Response(get_cart_products_data(request.user), status=status.HTTP_200_OK)
 
 
 # Create multiple cart detailAdd commentMore actions
@@ -793,11 +903,6 @@ class CommentUserViewSet(viewsets.ViewSet, generics.CreateAPIView,generics.Updat
         content = request.data.get('content')
         rating = request.data.get('rating')
 
-        print(product_variant)
-        print(order_detail)
-        print(content)
-        print(rating)
-
         if (request.user == product_variant.product.store.owner):
             return Response(data={"msg": "Can not comment on your own product"}, status=status.HTTP_403_FORBIDDEN)
 
@@ -856,12 +961,15 @@ def updateLikeComments(request):
 
 ######################################################## ORDER #####################################################
 
-def createOrder(customer,total_price,payment_method,paid):
+def createOrder(customer,total_price,payment_method,paid, shipping_address):
     return Order.objects.create(customer=customer,payment_method=payment_method
-                                       ,total_price=total_price,paid=paid)
+                                       ,total_price=total_price,paid=paid,shipping_address=shipping_address)
 def createOrderDetail(order, products):
     for p in products:
-        store = ProductVariant.objects.get(pk=p.get('product_variant_id')).product.store
+        variant = ProductVariant.objects.get(pk=p.get('product_variant_id'))
+        store = variant.product.store
+        variant.quantity = variant.quantity - p.get('quantity')
+        variant.save()
         OrderDetail.objects.create(order=order,product_variant_id=p.get('product_variant_id'),quantity=p.get('quantity'),store=store)
 
 def removeCartDetail(cart_detail_list):
@@ -933,8 +1041,9 @@ class OrderViewSet(viewsets.ViewSet,generics.CreateAPIView, generics.RetrieveUpd
            order_total_price = request.data.get('total_price')
            paid = request.data.get('paid')
            cart_detail_list = request.data.get('cart_detail_list')
+           shipping_address = request.data.get('shipping_address')
 
-           newOrder = createOrder(customer=request.user,total_price=order_total_price,payment_method=payment_method.get('method'),paid=paid)
+           newOrder = createOrder(customer=request.user,total_price=order_total_price,payment_method=payment_method.get('method'),paid=paid,shipping_address=shipping_address)
            createOrderDetail(products=products,order=newOrder)
            removeCartDetail(cart_detail_list)
 
@@ -948,13 +1057,17 @@ class OrderViewSet(viewsets.ViewSet,generics.CreateAPIView, generics.RetrieveUpd
                # Momo response kết quả xác nhận xử lý yeeu cầu tạo thanh toán
                MomoResponse = callApiMoMo(data)
 
-               if (MomoResponse.get('resultCode') == 0):
-                   return Response(data={'result_code': 0,'deeplink': MomoResponse.get('deeplink')
-                       , 'msg':"Gửi yêu cầu thanh toán thành công"}, status=status.HTTP_200_OK)
+               if MomoResponse.get('resultCode') == 0:
+                   return Response(
+                       data={
+                           'result_code': 0,
+                           'deeplink': MomoResponse.get('deeplink'),
+                           'msg':"Gửi yêu cầu thanh toán thành công"
+                       },
+                       status=status.HTTP_200_OK
+                   )
 
                return Response(data={'result_code': MomoResponse.get('resultCode'), 'msg': "Có lỗi xảy ra"}, status=status.HTTP_400_BAD_REQUEST)
-
-
 
     def partial_update(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -992,12 +1105,14 @@ def callbackMoMo(request):
     order_total_price = data.get('total_price')
     cart_detail_list = data.get('cart_detail_list')
     user_id = data.get('user_id')
+    shipping_address = data.get('shipping_address')
+
     # Khach hang thanh toan thanh cong
     if (resultCode == 0):
         paid = True
         # Tạo order detail, rm cart detail ...
         newOrder = Order.objects.create(customer_id=user_id, total_price=order_total_price,
-                                        payment_method=payment_method.get('method'), paid=paid)
+                                        payment_method=payment_method.get('method'), paid=paid, shipping_address=shipping_address)
         createOrderDetail(products=products, order=newOrder)
         removeCartDetail(cart_detail_list)
         # Tao payment
@@ -1030,6 +1145,7 @@ def user_purchase_list(request):
     if not orders:
         return Response([])
 
+    print(orders)
     paginator = PageNumberPagination()
     paginator.page_size = 8
     paginated_orders = paginator.paginate_queryset(orders, request)
@@ -1114,3 +1230,13 @@ def create_store_rating(request):
     store_rating_serializer.is_valid(raise_exception=True)
     new_store_rating = store_rating_serializer.save(user=request.user)
     return Response(serializers.StoreRatingSerializer(new_store_rating).data , status=status.HTTP_201_CREATED)
+
+@api_view(['POST'])
+@permission_classes([perms.IsCustomerOrSeller])
+def verify_isPaid_orderId(request):
+    order_id = request.data.get('order_id')
+    payment = Payment.objects.filter(order_payment_id=order_id).first()
+    if (payment):
+        return Response({'paid': payment.payment_status}, status=status.HTTP_200_OK)
+    else:
+        return Response({'paid': False}, status=status.HTTP_200_OK)

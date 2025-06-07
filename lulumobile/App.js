@@ -24,6 +24,12 @@ import Cart from './components/cart/Cart';
 import ManageOrders from './components/store/ManageOrders';
 import Orders from './components/user/Orders';
 import Revenue from './components/store/Revenue';
+import Checkout from './components/home/Checkout';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import NewAddress from './components/ui/address/NewAddress';
+import CreateAddress from './components/ui/address/CreateAddress';
+import ChooseShippingAddress from './components/ui/address/ChooseShippingAddress';
+import HeaderLeft from './components/utils/HeaderLeft';
 
 const ProfileStack = createNativeStackNavigator();
 function MyProfileStack() {
@@ -47,6 +53,25 @@ function MyHomeStack() {
       <HomeStack.Screen name="homeMain" component={Home} options={{ headerShown: false }} />
       <HomeStack.Screen name="productDetail" component={ProductDetail} options={{ headerShown: false }} />
       <HomeStack.Screen name="cartPage" component={Cart} />
+      <HomeStack.Screen name="checkoutPage" component={Checkout} />
+      <HomeStack.Screen name="newAddressPage" component={NewAddress}
+        options={({ route, navigation }) => ({
+          title: "Địa chỉ mới",
+          headerLeft: () => (<HeaderLeft navigation={navigation} />)
+        })}
+      />
+      <HomeStack.Screen name="createAddressPage" component={CreateAddress}
+        options={({ route, navigation }) => ({
+          title: "Tạo địa chỉ",
+          headerLeft: () => (<HeaderLeft navigation={navigation} />)
+        })}
+      />
+      <HomeStack.Screen name="chooseShippingAddressPage" component={ChooseShippingAddress}
+        options={({ route, navigation }) => ({
+          title: "Chọn khu vực",
+          headerLeft: () => (<HeaderLeft navigation={navigation} />)
+        })}
+      />
     </HomeStack.Navigator>
   )
 }
@@ -82,7 +107,7 @@ function MyTabs() {
       <Tab.Screen name="home"
         component={MyHomeStack}
         options={({ route }) => {
-          const tabHidden = ['productDetail', 'cartPage'];
+          const tabHidden = ['productDetail', 'cartPage', 'checkoutPage', 'newAddressPage', 'createAddressPage', 'chooseShippingAddressPage'];
           const routeName = getFocusedRouteNameFromRoute(route);
           return {
             tabBarIcon: () => <Icon size={30} source="home" color="#797979" />,
@@ -93,7 +118,7 @@ function MyTabs() {
           tabPress: e => {
             // Ngăn mặc định
             e.preventDefault();
-            // Reset lại stack navigator để luôn quay về "index"
+            // Reset lại stack navigator để luôn quay về "profileMain"
             navigation.navigate('home', {
               screen: 'homeMain',
             });
@@ -146,15 +171,17 @@ const App = () => {
   const [cart, cartDispatch] = useReducer(CartReducer, null);
 
   return (
-    <MyUserContext.Provider value={user}>
-      <MyDispatchContext.Provider value={dispatch}>
-        <CartContext.Provider value={{ cart, cartDispatch }}>
-          <NavigationContainer>
-            <MyTabs />
-          </NavigationContainer>
-        </CartContext.Provider>
-      </MyDispatchContext.Provider>
-    </MyUserContext.Provider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <MyUserContext.Provider value={user}>
+        <MyDispatchContext.Provider value={dispatch}>
+          <CartContext.Provider value={{ cart, cartDispatch }}>
+            <NavigationContainer>
+              <MyTabs />
+            </NavigationContainer>
+          </CartContext.Provider>
+        </MyDispatchContext.Provider>
+      </MyUserContext.Provider>
+    </GestureHandlerRootView>
   );
 }
 

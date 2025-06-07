@@ -25,12 +25,12 @@ const HeaderHome = ({ value, onChangeText, showBackButton = false, showHomeButto
                     nestedScreen: "home",
                     route: "cartPage",
                     // Params để quay trở về
-                    params: {
-                        prevScreen: {
-                            nestedScreen: nestedScreen, previousRoute: route.name,
-                            prevRouteParams: route.params
-                        }
-                    }
+                    // params: {
+                    //     prevScreen: {
+                    //         nestedScreen: nestedScreen, previousRoute: route.name,
+                    //         prevRouteParams: route.params
+                    //     }
+                    // }
                 }
             }
         })
@@ -38,39 +38,35 @@ const HeaderHome = ({ value, onChangeText, showBackButton = false, showHomeButto
 
     const handleOnPressCart = () => {
         if (user === null) {
-            navigateLoginPage('home', 'cartPage')
+            navigateLoginPage()
         }
         else {
-            nav.navigate('cartPage', {
-                prevScreen: {
-                    nestedScreen: nestedScreen, previousRoute: route.name,
-                    prevRouteParams: route.params
-                }
-            })
+            nav.navigate('cartPage')
         }
     }
 
     const handleGoBack = () => {
-        const { prevScreen } = route.params
-        if (prevScreen.previousRoute === "homeMain") {
-            nav.goBack();
-        }
-        if (prevScreen) {
-            if (prevScreen.nestedScreen) {
-                nav.navigate(prevScreen.nestedScreen, {
-                    screen: prevScreen.previousRoute,
-                    params: {
-                        ...prevScreen.prevRouteParams
-                    }
-                })
-            }
-            else {
-                nav.navigate(prevScreen.previousRoute, { ...prevScreen.prevRouteParams })
-            }
-        }
-        else {
-            nav.navigate("homeMain");
-        }
+        // const { prevScreen } = route.params
+        // if (prevScreen.previousRoute === "homeMain") {
+        //     nav.goBack();
+        // }
+        // if (prevScreen) {
+        //     if (prevScreen.nestedScreen) {
+        //         nav.navigate(prevScreen.nestedScreen, {
+        //             screen: prevScreen.previousRoute,
+        //             params: {
+        //                 ...prevScreen.prevRouteParams
+        //             }
+        //         })
+        //     }
+        //     else {
+        //         nav.navigate(prevScreen.previousRoute, { ...prevScreen.prevRouteParams })
+        //     }
+        // }
+        // else {
+        //     nav.navigate("homeMain");
+        // }
+        nav.goBack()
     }
 
     return (
@@ -113,7 +109,7 @@ const HeaderHome = ({ value, onChangeText, showBackButton = false, showHomeButto
 
                         {showHomeButton ? (
                             <View>
-                                <IconButton icon="home-outline" size={25} onPress={() => nav.navigate("homeMain")} iconColor="#fff" />
+                                <IconButton icon="home-outline" size={25} onPress={() => nav.popToTop()} iconColor="#fff" />
                             </View>
                         ) : (
                             <View>

@@ -1,15 +1,11 @@
 import { useState, useRef, useEffect, useContext } from 'react';
 import {
-    View, Text, StyleSheet, Image, TouchableWithoutFeedback, Pressable, ScrollView, TouchableOpacity,
+    View, Text, StyleSheet, Image, Pressable, ScrollView, TouchableOpacity,
     TextInput,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { CartContext } from "../../../configs/MyContext"
-import ModalMessage from './ModalMessage';
-import ToastMessage from './ToastMessage';
-import { authApis, endpoints } from '../../../configs/Apis';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Cart_Action_Type } from '../../../reducers/CartReducer';
+import { useNavigation } from '@react-navigation/native';
 
 const BoxOption = ({ logo = undefined, name, onPress, isDisable, choosen }) => (
     <Pressable style={[styles.optionBox, isDisable && styles.disabled, choosen && { borderColor: "#fa5230", borderWidth: 1 }]} onPress={onPress} disabled={isDisable}>
@@ -20,12 +16,12 @@ const BoxOption = ({ logo = undefined, name, onPress, isDisable, choosen }) => (
     </Pressable>
 );
 
-const ModalProductContent = ({ product, handleOnPressClose, pathOptions, mainAttr, mainAttrDisable,
+const ModalForBuyNowContent = ({ product, handleOnPressClose, pathOptions, mainAttr, mainAttrDisable,
     selected, handleSelected, disableAttr, handleSetDisableAttr,
     handleSetDisableAttrWithValue, variantId, handleSetVariantId }) => {
 
-    const { cart, cartDispatch } = useContext(CartContext)
-
+    const { cart } = useContext(CartContext)
+    const navigation = useNavigation()
     const dataToRender = useRef(
         Object.entries({
             ...product.attributes, [mainAttr.current]: Array.from(
@@ -54,12 +50,7 @@ const ModalProductContent = ({ product, handleOnPressClose, pathOptions, mainAtt
     const [isMaxQuantity, setIsMaxQuantity] = useState(false)
     const [isMinQuantity, setIsMinQuantity] = useState(true)
     const lastText = useRef(null)
-    const remainStock = useRef(null)
     const cartBasic = useRef(null)
-    const currentPutInCart = useRef({})
-    const [openModalMsg, setOpenModalMsg] = useState(false)
-    const [quantityModalMsg, setQuantityModalMsg] = useState(null)
-    const [toastVisible, setToastVisible] = useState(false);
 
     const handleSetTempDisableAttr = (attr, value, tmpDisableAttr) => {
         if (!tmpDisableAttr[attr].includes(value)) {
@@ -194,7 +185,7 @@ const ModalProductContent = ({ product, handleOnPressClose, pathOptions, mainAtt
                 // // Lấy attr của của vị trí i 
                 var currentAttr = Object.keys(selected).find(key => selected[key] === i)
 
-                tmpSelectedRebuild = { ...tmpSelectedRebuild, [currentAttr]: i }
+                tmpSelectedRebuild = { ...tmpSelectedRebuild, [currentAttr]: index }
                 var remaindingAttrs = Object.keys(tmpSelectedRebuild).filter(key => tmpSelectedRebuild[key] === "")
 
                 remaindingAttrs.forEach(attr => {
@@ -249,6 +240,7 @@ const ModalProductContent = ({ product, handleOnPressClose, pathOptions, mainAtt
         if (stockQuantity === 1) {
             setIsMaxQuantity(true)
             setIsMinQuantity(true)
+
         } else {
             if (input === stockQuantity) {
                 setIsMaxQuantity(true)
@@ -260,14 +252,6 @@ const ModalProductContent = ({ product, handleOnPressClose, pathOptions, mainAtt
                 setIsMaxQuantity(false)
             }
         }
-
-
-        if (input > remainStock.current || input === remainStock.current) {
-            setShowMsg(true)
-        }
-        else {
-            setShowMsg(false)
-        }
     }
 
     // Xử lý khi bấm nút tăng sản phẩm
@@ -277,16 +261,13 @@ const ModalProductContent = ({ product, handleOnPressClose, pathOptions, mainAtt
             lastText.current = 1
         }
         else {
-            if (quantityInput + 1 === remainStock.current) {
-                setShowMsg(true)
-            }
-
             if (quantityInput === 1) {
                 setIsMinQuantity(false)
             }
 
             if (quantityInput + 1 === stockQuantity) {
                 setIsMaxQuantity(true)
+                setShowMsg(true)
             }
             setQuantityInput(quantityInput + 1)
             lastText.current = quantityInput + 1
@@ -297,10 +278,6 @@ const ModalProductContent = ({ product, handleOnPressClose, pathOptions, mainAtt
     const handleOnpressDecrease = () => {
         if (quantityInput === 2) {
             setIsMinQuantity(true)
-        }
-
-        if (quantityInput - 1 < remainStock.current) {
-            setShowMsg(false)
         }
 
         if (quantityInput === stockQuantity) {
@@ -335,71 +312,14 @@ const ModalProductContent = ({ product, handleOnPressClose, pathOptions, mainAtt
         }
     }
 
-    const handleOnpressAddToCart = () => {
-        if (quantityInput > remainStock.current) {
-            setQuantityModalMsg(cartBasic.current[variantId])
-            handleOpenModalMsg()
+    const handleOnpressConfirm = () => {
+        let dataToCheckout = {
+            store: product.store.id,
+            product_variant: variantId,
+            quantity: quantityInput
         }
-        else {
-            // Xử lý cart basic sync with real cart
-            if (cartBasic.current[variantId]) {
-                cartBasic.current[variantId] += quantityInput
-            }
-            else {
-                cartBasic.current[variantId] = quantityInput
-                cartDispatch({ type: 'cartAddAVariant' })
-            }
-
-            // Xử lý tạm put in cart
-            if (currentPutInCart.current[variantId]) {
-                currentPutInCart.current[variantId] += quantityInput
-            }
-            else {
-                currentPutInCart.current[variantId] = quantityInput
-            }
-
-            remainStock.current = remainStock.current - quantityInput
-            setToastVisible(true);
-        }
+        navigation.navigate("checkoutPage", { dataToCheckout, type: "buyNow" })
     }
-
-    const handleOpenModalMsg = () => {
-        setOpenModalMsg(true)
-    }
-
-    const handleCloseModalMsg = () => {
-        setOpenModalMsg(false)
-    }
-
-    const postDataToCart = async () => {
-        try {
-            let product_variants = Object.keys(currentPutInCart.current).reduce((acc, key) => {
-                acc.push({
-                    id: key,
-                    quantity: currentPutInCart.current[key]
-                })
-
-                return acc
-            }, [])
-
-            //console.log("pr v post api ", product_variants)
-            let dataSentToCart = {
-                cart_id: cart.id,
-                product_variants
-            }
-            //console.log("dat to send over api ", dataSentToCart)
-
-            const token = await AsyncStorage.getItem('token');
-            let newCartRes = await authApis(token).post(endpoints['postProductsToCart'], dataSentToCart)
-            //console.log("cart res", newCartRes.data)
-
-            cartDispatch({ type: Cart_Action_Type.UPDATE_CART_AFTER_POST, payload: newCartRes.data })
-        }
-        catch (err) {
-            console.log("error post data to cart", err)
-        }
-    }
-
 
     useEffect(() => {
         // Chạy mỗi lần khi mounted
@@ -414,20 +334,12 @@ const ModalProductContent = ({ product, handleOnPressClose, pathOptions, mainAtt
     useEffect(() => {
         // Chạy mỗi khi mounted và variantId thay đổi
         if (variantId) {
-            remainStock.current = stockQuantity - (cartBasic.current?.[variantId] ?? 0)
             lastText.current = 1
-            setShowMsg(remainStock.current === 0 || stockQuantity === 1)
             setIsMaxQuantity(stockQuantity === 1)
             setQuantityInput(1)
         }
     }, [variantId])
 
-    useEffect(() => {
-        // Gọi API cập nhật cart khi unmount
-        return () => {
-            postDataToCart()
-        }
-    }, [])
     return (
         <View style={styles.container}>
             <View style={styles.subContainer}>
@@ -485,7 +397,6 @@ const ModalProductContent = ({ product, handleOnPressClose, pathOptions, mainAtt
                             )
                         })
                     }
-
                     <View style={styles.quantityStepperContainer}>
                         <View style={styles.textBox}>
                             <Text style={{ fontSize: 16 }}>Số lượng</Text>
@@ -518,35 +429,25 @@ const ModalProductContent = ({ product, handleOnPressClose, pathOptions, mainAtt
                     {
                         showMsg && (<Text style={{ marginTop: 10, fontSize: 12, color: "#fa5230" }}>Số lượng bạn chọn đã đạt mức tối đa của sản phẩm này</Text>)
                     }
-
                 </ScrollView>
+
             </View>
 
             <View style={[styles.bigBtnContainer, { margin: 0 }]}>
-                <View style={[styles.bigBtn, { backgroundColor: (isOptionFull && quantityInput != '') ? "#fa5230" : "#d3d3d3" }]}>
-                    <Pressable disabled={!isOptionFull || quantityInput === ''} onPress={handleOnpressAddToCart} style={{ flex: 1, width: "100%", justifyContent: 'center', alignItems: 'center' }}>
-                        <Text style={[styles.bigBtnText, { color: (isOptionFull && quantityInput != '') ? "#fff" : "rgba(255,255,255,0.7)" }]}>Thêm vào Giỏ hàng</Text>
+                <View style={[styles.bigBtn, , { backgroundColor: (isOptionFull && quantityInput != '') ? "#fa5230" : "#d3d3d3" }]}>
+                    <Pressable disabled={!isOptionFull || quantityInput === ''} onPress={() => { handleOnpressConfirm(); handleOnPressClose() }} style={{ flex: 1, width: "100%", justifyContent: 'center', alignItems: 'center' }}>
+                        <Text style={[styles.bigBtnText,
+                        { color: (isOptionFull && quantityInput != '') ? "#fff" : "rgba(255,255,255,0.7)" }]}>
+                            Xác nhận
+                        </Text>
                     </Pressable>
                 </View>
             </View>
-
-            <ToastMessage
-                message="Đã thêm vào giỏ"
-                iconName={"check"}
-                visible={toastVisible}
-                onHide={() => setToastVisible(false)}
-            />
-
-            <ModalMessage
-                visible={openModalMsg}
-                handleCloseModalMsg={handleCloseModalMsg}
-                quantity={quantityModalMsg}
-            />
         </View>
     )
 };
 
-export default ModalProductContent
+export default ModalForBuyNowContent
 
 const styles = StyleSheet.create({
     container: {
@@ -677,14 +578,9 @@ const styles = StyleSheet.create({
         alignItems: "center",
         marginTop: 10,
         marginLeft: 10,
-        marginRight: 10
+        marginRight: 10,
     },
     bigBtnText: {
         fontSize: 16
     }
 });
-
-// Xong theem vao gio tren front con back end
-// Done:   gọi API thêm vào giỏ (kHI đã chọn đủ mới cho gọi API)
-
-// TO DO LISTTTTT: Xử lý trang chi tiết giỏ hàng , nút bấm mua ngay

@@ -26,8 +26,13 @@ const Orders = ({ route }) => {
     ]
 
     const loadOrderDetail = async (status, isFirstPage) => {
+
         try {
             setLoadMore(true);
+
+            if (isFirstPage) {
+                setOrderDetail([]);
+            }
 
             let token = await AsyncStorage.getItem('token');
             let currentPage = isFirstPage ? 1 : page;
@@ -81,14 +86,14 @@ const Orders = ({ route }) => {
     }
 
     const handleCancelOrder = async (orderDetailId) => {
-        let token = await AsyncStorage.getItem('token')
+        let token = await AsyncStorage.getItem('token');
 
         try {
             let res = await authApis(token).patch(endpoints["cancel_order_detail"](orderDetailId));
 
             if (res.status === 200) {
                 Alert.alert("Thông báo", "Đã hủy đơn hàng thành công");
-                loadOrderDetail(orderStatus);
+                loadOrderDetail(orderStatus, true);
                 return;
             } else {
                 Alert.alert("Lỗi", "Lỗi kết nối hoặc máy chủ");
@@ -159,11 +164,13 @@ const Orders = ({ route }) => {
 
             <View style={{ flex: 1 }}>
                 {/* {!loadMore ? <> */}
-                {orderDetail?.length === 0 &&
+                {orderDetail?.length === 0 && !loadMore &&
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                         <Text>Không có đơn hàng</Text>
                     </View>
                 }
+
+                {orderDetail?.length === 0 && loadMore && <ActivityIndicator size="large" style={{ marginTop: 100 }} />}
 
                 {orderDetail?.length > 0 && <>
                     <ListOrderDetail

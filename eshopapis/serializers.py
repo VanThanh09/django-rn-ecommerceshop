@@ -21,11 +21,11 @@ class StoreSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'username', 'password', 'email', 'avatar', 'user_role']
+        fields = ['id', 'first_name', 'last_name', 'username', 'password', 'email', 'avatar', 'user_role', 'address']
         extra_kwargs = {
             'password': {
                 'write_only': True
-            }
+            },
         }
 
     # Ghi đè create để băm mật khẩu khi tạo
@@ -205,11 +205,12 @@ class ProductCreateSerializer(serializers.ModelSerializer):
 class ProductVariantWithProductNameSerializer(serializers.ModelSerializer):
     attributes = AttributeValueSerializer(many=True)
     product_name = serializers.StringRelatedField(source="product.name")
+    product_id = serializers.IntegerField(source="product.id")
     stock_quantity = serializers.IntegerField(source="quantity")
 
     class Meta:
         model=ProductVariant
-        fields = ['id', 'product_name', 'logo', 'price', 'attributes', 'stock_quantity']
+        fields=['id', 'product_name',"product_id",'logo',  'price', 'attributes', 'stock_quantity']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -381,7 +382,7 @@ class CartDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartDetail
         fields = ['id','product_variant', 'quantity','active','cart','cart_total_quantity']
-        read_only_fields = ('id','cart', 'active')
+        read_only_fields = ('id','cart')
 
     # Orverride create method that check if product_variant is already exist then just update
     def create(self, validated_data):
@@ -401,6 +402,39 @@ class CartDetailSerializer(serializers.ModelSerializer):
         cart.save()
 
         return cartDetail
+
+    # Override update to update Cart detail if update pro variant to a cart detail of same cart alredy have it just add to it
+    def update(self, instance, validated_data):
+        if (validated_data.get('product_variant')):
+
+            if instance.product_variant == validated_data.get('product_variant'):
+                instance.quantity = validated_data.get('quantity', instance.quantity)
+                instance.save()
+
+            elif CartDetail.objects.filter(cart=instance.cart, product_variant_id=validated_data.get('product_variant')).exists():
+                # Trường hợp có 1 cái đang giu varaint này rồi thì gop lại chung với nhau
+                cartOwnVariant = CartDetail.objects.filter(cart=instance.cart, product_variant_id=validated_data.get('product_variant')).first()
+                cartOwnVariant.quantity += validated_data.get('quantity', cartOwnVariant.quantity)
+                instance.cart.total_quantity -= 1
+
+                cartOwnVariant.save()
+                instance.cart.save()
+                instance.delete()
+
+                return cartOwnVariant
+
+            else:
+                instance.product_variant = validated_data.get('product_variant')
+                instance.quantity = validated_data.get('quantity', instance.quantity)
+                instance.save()
+        else:
+            instance.quantity = validated_data.get('quantity', instance.quantity)
+            instance.product_variant = validated_data.get('product_variant', instance.product_variant)
+            instance.active = validated_data.get('active', instance.active)
+
+            instance.save()
+
+        return instance
 
 
 class CommentImageSerializer(serializers.ModelSerializer):
