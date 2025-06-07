@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { Alert, Image, StyleSheet, Text, TouchableOpacity, View, FlatList, Modal, TouchableWithoutFeedback, TextInput, ScrollView, ActivityIndicator } from "react-native";
+import { Alert, Image, StyleSheet, Text, TouchableOpacity, View, FlatList, Modal, TextInput, ScrollView, ActivityIndicator, ActivityIndicatorBase } from "react-native";
 import { Icon } from "react-native-paper";
 import StarRating from "react-native-star-rating-widget";
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authApis, endpoints } from "../../../configs/Apis";
 
-const ListOrderDetail = ({ handlePressChat = () => { }, orderDetail, handleCancelOrder = () => { }, handleSuccessOrder = () => { }, isSeller, canComment, orderStatus, loadOrderDetail }) => {
+const ListOrderDetail = ({ handlePressChat = () => { }, orderDetail, handleCancelOrder = () => { }, handleSuccessOrder = () => { }, isSeller, canComment, orderStatus, loadOrderDetail, onEndReached, loadMore }) => {
+
     const [commentVisible, setCommentVisible] = useState(false);
 
     const [productRating, setProductRating] = useState(0);
@@ -18,7 +19,7 @@ const ListOrderDetail = ({ handlePressChat = () => { }, orderDetail, handleCance
     const [loading, setLoading] = useState(false);
 
     const pick = async () => {
-        if (images.length >= 3) {
+        if (images.length >= 5) {
             Alert.alert("Thông báo", "Tối đa 3 ảnh !");
         } else {
             let { status } =
@@ -66,9 +67,9 @@ const ListOrderDetail = ({ handlePressChat = () => { }, orderDetail, handleCance
                             type: i.mimeType || 'image/jpeg',
                         })
 
-                for (let pair of form.entries()) {
-                    console.log(`${pair[0]}:`, pair[1]);
-                }
+                // for (let pair of form.entries()) {
+                //     console.log(`${pair[0]}:`, pair[1]);
+                // }
 
                 let token = await AsyncStorage.getItem('token');
 
@@ -103,7 +104,7 @@ const ListOrderDetail = ({ handlePressChat = () => { }, orderDetail, handleCance
             <View style={styles.productRow}>
                 <Image source={{ uri: item.product_variant.logo }} style={styles.productImage} />
                 <View style={{ flex: 1, marginLeft: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <View>
+                    <View style={{ maxWidth: '70%' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={styles.productName}>{item.product.name}</Text>
                             <Text style={styles.orderId}> Mã đơn: #{item.id}</Text>
@@ -112,7 +113,9 @@ const ListOrderDetail = ({ handlePressChat = () => { }, orderDetail, handleCance
                             {item.product_variant.price.toLocaleString()}đ
                         </Text>
                         <Text>Số lượng: {item.quantity}</Text>
-
+                        <Text>
+                            {item.product_variant.attributes.map(attr => `${attr.attribute_name}: ${attr.value}`).join('  -  ')}
+                        </Text>
                     </View>
                     <View style={{ justifyContent: 'flex-end', alignItems: 'flex-end' }}>
                         <TouchableOpacity
@@ -165,7 +168,7 @@ const ListOrderDetail = ({ handlePressChat = () => { }, orderDetail, handleCance
                                 onPress: () => handleSuccessOrder(item.id),
                             }])
                         }}
-                        style={[styles.cancelBtn, { borderColor: "#0285ff" }]}
+                        style={[styles.cancelBtn, { borderColor: "#0e9900" }]}
                     >
                         <Text style={{ color: '#0e9900' }}>Giao thành công</Text>
                     </TouchableOpacity>
@@ -202,6 +205,8 @@ const ListOrderDetail = ({ handlePressChat = () => { }, orderDetail, handleCance
                 renderItem={renderItem}
                 keyExtractor={(item) => item.id.toString()}
                 contentContainerStyle={{ padding: 10 }}
+                onEndReached={onEndReached}
+                ListFooterComponent={loadMore && <ActivityIndicator size={30} style={{ marginTop: 20, paddingBottom: 50 }} />}
             />
 
             {commentVisible && currentItem && canComment && (

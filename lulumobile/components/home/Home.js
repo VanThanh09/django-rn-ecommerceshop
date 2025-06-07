@@ -48,7 +48,8 @@ function Home() {
                         url = `${url}&category_id=${cate}`;
                     })
                 }
-                console.log("loadd")
+                console.log("load")
+
                 if (searchQuery) {
                     url = `${url}&q=${searchQuery}`;
                 }

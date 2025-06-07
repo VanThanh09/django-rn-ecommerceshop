@@ -45,7 +45,7 @@ class VerificationSeller(models.Model):
         unique_together = ['status', 'user']
 
     def __str__(self):
-        return str(self.status)
+        return str(self.temp_store_name)
 
 
 class BaseModel(models.Model):
@@ -115,9 +115,8 @@ class ProductVariant(BaseModel):
 
     def __str__(self):
         attributeValues = self.attributes.all()
-        allValues = ''
-        for a in attributeValues:
-            allValues += a.value
+        allValues = ' - '.join([f'{a.attribute.name}: {a.value}' for a in attributeValues])
+
         return f"{self.product.name} - {allValues} - Tồn kho: {self.quantity} - Giá: {"{:,.0f}".format(self.price)} VND"
 
 

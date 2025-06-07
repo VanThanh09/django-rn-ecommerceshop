@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
         marginTop: 8,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-start',
         gap: 15
     },
     image: {

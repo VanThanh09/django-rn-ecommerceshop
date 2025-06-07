@@ -12,7 +12,10 @@ const Orders = ({ route }) => {
     const [orderDetail, setOrderDetail] = useState([]);
     const [loading, setLoading] = useState(false);
     const [orderStatus, setOrderStatus] = useState('PE');
-    const [commentVisible, setCommentVisible] = useState(false);
+
+    const [page, setPage] = useState(1);
+    const [loadMore, setLoadMore] = useState(false);
+
     const nav = useNavigation();
     const user = useContext(MyUserContext);
 
@@ -22,22 +25,45 @@ const Orders = ({ route }) => {
         { label: 'Đã nhận', value: 'SU' },
     ]
 
-    const loadOrderDetail = async (status) => {
-        setOrderDetail([]);
+    const loadOrderDetail = async (status, isFirstPage) => {
         try {
-            setLoading(true);
+            setLoadMore(true);
 
             let token = await AsyncStorage.getItem('token');
-            let res = await authApis(token).get(endpoints['orderOfUser'](status));
-            setOrderDetail(res.data);
+            let currentPage = isFirstPage ? 1 : page;
+
+            let url = `${endpoints['orderOfUser']}?status=${status}&page=${currentPage}`;
+
+            let res = await authApis(token).get(url);
+
+            let data = res.data.results ?? res.data;
+
+            if (isFirstPage)
+                setOrderDetail(data);
+            else {
+                setOrderDetail(prev => [...prev, ...data]);
+            }
+
+            if (res.data.next)
+                setPage(currentPage + 1);
+            else
+                setPage(0);
 
             // console.log(JSON.stringify(res.data, null, 2));
         } catch (err) {
             console.log(err);
         } finally {
-            setLoading(false);
+            setLoadMore(false);
         }
     }
+
+    const handleLoadMore = () => {
+        if (!loadMore && page !== 0 && orderDetail.length > 0) {
+            loadOrderDetail(orderStatus);
+        }
+    };
+
+    // useEffect(() => { console.log(page) }, [page])
 
     const handlePressChat = (storeOwnerId) => {
         const parentNav = nav.getParent();
@@ -74,7 +100,7 @@ const Orders = ({ route }) => {
     }
 
     useEffect(() => {
-        loadOrderDetail(orderStatus);
+        loadOrderDetail(orderStatus, true);
         try {
             nav.setOptions({
                 headerLeft: () => (
@@ -116,7 +142,8 @@ const Orders = ({ route }) => {
                         onPress={() => {
                             if (orderStatus === item.value) return;
                             setOrderStatus(item.value);
-                            loadOrderDetail(item.value);
+                            setPage(1);
+                            loadOrderDetail(item.value, true);
                         }}
                     >
                         <Text style={[
@@ -131,24 +158,32 @@ const Orders = ({ route }) => {
             </View>
 
             <View style={{ flex: 1 }}>
-                {!loading ? <>
-                    {orderDetail.length === 0 &&
-                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                            <Text>Không có đơn hàng</Text>
-                        </View>
-                    }
+                {/* {!loadMore ? <> */}
+                {orderDetail?.length === 0 &&
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                        <Text>Không có đơn hàng</Text>
+                    </View>
+                }
 
-                    {orderDetail.length > 0 && orderStatus === 'SU' && <>
-                        <ListOrderDetail handlePressChat={handlePressChat} orderDetail={orderDetail} handleCancelOrder={handleCancelOrder}
-                            isSeller={false} canComment={true} handleComment={() => setCommentVisible(true)} orderStatus={orderStatus} loadOrderDetail={loadOrderDetail} />
-                    </>}
-
-                    {orderDetail.length > 0 && (orderStatus === 'SH' || orderStatus === 'PE') && <>
-                        <ListOrderDetail handlePressChat={handlePressChat} orderDetail={orderDetail} handleCancelOrder={handleCancelOrder} isSeller={false} />
-                    </>}
-                </> : <>
-                    <ActivityIndicator size="large" style={{ marginTop: 100 }} />
+                {orderDetail?.length > 0 && <>
+                    <ListOrderDetail
+                        handlePressChat={handlePressChat}
+                        orderDetail={orderDetail}
+                        handleCancelOrder={handleCancelOrder}
+                        isSeller={false}
+                        canComment={orderStatus === 'SU'}
+                        orderStatus={orderStatus}
+                        loadOrderDetail={loadOrderDetail}
+                        onEndReached={handleLoadMore}
+                        loadMore={loadMore} />
                 </>}
+
+                {/* {orderDetail?.length > 0 && (orderStatus === 'SH' || orderStatus === 'PE') && <>
+                        <ListOrderDetail handlePressChat={handlePressChat} orderDetail={orderDetail} handleCancelOrder={handleCancelOrder} isSeller={false} onEndReached={handleLoadMore} loadMore={loadMore} />
+                    </>} */}
+                {/* </> : <>
+                    <ActivityIndicator size="large" style={{ marginTop: 100 }} />
+                </>} */}
             </View>
 
         </View>

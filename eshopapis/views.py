@@ -6,7 +6,7 @@ from datetime import timedelta
 from django.db.models.functions import TruncDay, TruncMonth
 from django.http import JsonResponse
 from django.utils.timezone import now
-from django.views.decorators.csrf import csrf_exempt
+from rest_framework.pagination import PageNumberPagination
 from rest_framework import viewsets, generics, status, parsers, permissions
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -879,8 +879,19 @@ class OrderDetailUpdateViewSet(viewsets.ViewSet,generics.UpdateAPIView):
     @action(methods=['patch'], url_path='cancel_order', detail=True, permission_classes=[perms.CancelOrderDetailPermission])
     def cancel_order(self, request, pk=None):
         order_detail = self.get_object()
+
+        if order_detail.order_status != OrderDetail.OrderStatus.PENDING:
+            return Response({'detail': 'Only cancel order pending'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Update order status
         order_detail.order_status = OrderDetail.OrderStatus.CANCEL
         order_detail.save()
+
+        # Update product variant quantity
+        product_variant = order_detail.product_variant
+        product_variant.quantity += order_detail.quantity
+        product_variant.save()
+
         return Response(serializers.OrderDetailUpdateSerializer(order_detail).data, status=status.HTTP_200_OK)
 
 
@@ -1009,18 +1020,23 @@ def callbackMoMo(request):
 
 @api_view(['GET'])
 @permission_classes([perms.IsCustomerOrSeller])
-def userpurchase_list(request):
+def user_purchase_list(request):
     if request.query_params.get('status') == None:
-        orders = OrderDetail.objects.filter(order__customer=request.user)
+        orders = OrderDetail.objects.filter(order__customer=request.user).order_by('-id')
     else:
         orders = OrderDetail.objects.filter(order__customer=request.user,
-                                      order_status=request.query_params.get('status'))
-    serializer = serializers.OrderDetailSerializer(orders, many=True)
+                                      order_status=request.query_params.get('status')).order_by('-id')
 
     if not orders:
         return Response([])
 
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    paginator = PageNumberPagination()
+    paginator.page_size = 8
+    paginated_orders = paginator.paginate_queryset(orders, request)
+
+    serializer = serializers.OrderDetailSerializer(paginated_orders, many=True)
+
+    return paginator.get_paginated_response(serializer.data)
 
 
 # StoreOrder Function based view

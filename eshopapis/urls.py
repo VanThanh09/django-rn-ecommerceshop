@@ -21,7 +21,7 @@ router.register('seller_comments',views.CommentSellerViewSet,basename='seller_co
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('user/orders/', views.userpurchase_list),
+    path('user/orders/', views.user_purchase_list),
     path('portal/store/orders/',views.storeorder_list),
     path('cart/basic-info/', views.get_products_in_cart),
     path('cart/',views.get_products_detail_in_cart),
