@@ -22,6 +22,7 @@ import NewAddress from './components/ui/address/newAddress';
 import CreateAddress from './components/ui/address/createAddress';
 import HeaderLeft from './components/utils/headerLeft';
 import ChooseShippingAddress from './components/ui/address/chooseShippingAddress';
+import FindProductsMatch from './components/findProductMatch';
 
 const Stack = createNativeStackNavigator();
 const HomeStackNavigator = createNativeStackNavigator();
@@ -61,6 +62,12 @@ function HomeStack({ navigation, route }) {
           headerLeft: () => (<HeaderLeft navigation={navigation} />)
         })}
       />
+      <HomeStackNavigator.Screen name="findProductsMatch" component={FindProductsMatch}
+        options={({ route, navigation }) => ({
+          headerTitle: () => (<Text style={{ fontSize: 16, fontWeight: "700" }}>So sánh</Text>),
+          headerLeft: () => (<HeaderLeft navigation={navigation} />)
+        })}
+      />
     </HomeStackNavigator.Navigator>
   )
 }
@@ -73,7 +80,7 @@ function MyTabs() {
       <Tab.Screen name="home"
         component={HomeStack}
         options={({ route }) => {
-          const tabHidden = ['productDetail', 'cartPage', 'checkoutPage', 'newAddressPage', 'createAddressPage', 'chooseShippingAddressPage'];
+          const tabHidden = ['productDetail', 'cartPage', 'checkoutPage', 'newAddressPage', 'createAddressPage', 'chooseShippingAddressPage', 'findProductsMatch'];
           const routeName = getFocusedRouteNameFromRoute(route);
           return {
             tabBarIcon: () => <Icon size={30} source="home" />,

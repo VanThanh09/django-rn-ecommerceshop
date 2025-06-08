@@ -444,7 +444,7 @@ const CartProduct = ({ cartProduct, isFixButtonPressed, toggleTickCart, handleSe
             </Animated.View>
 
             <Animated.View style={[cartProdutStyles.removeAndFindSimilarBtn, { width: widthRemoveSimilarBtn }]}>
-                <Pressable onPress={() => console.log("san pham tuong tu")} style={cartProdutStyles.findSimilarBtn} disabled={!cartProduct.active}>
+                <Pressable onPress={() => nav.navigate('findProductsMatch', {productId: cartProduct.product_variant.product_id})} style={cartProdutStyles.findSimilarBtn} disabled={!cartProduct.active}>
                     <Text style={{ fontSize: 14, color: "#fff", textAlign: "center" }}>Sản phẩm tương tự</Text>
                 </Pressable>
                 <Pressable onPress={() => handleDeleteCartDetail(cartProduct.cart_detail)} style={cartProdutStyles.removeBtn} disabled={!cartProduct.active}>
