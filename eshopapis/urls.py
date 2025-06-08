@@ -32,4 +32,6 @@ urlpatterns = [
     path('create_rating_store/', views.create_store_rating),
     path('verify_isPaid_orderId/',views.verify_isPaid_orderId),
     path('patch_user_info/', views.UserUpdateGenericsView.as_view()),
+    path('find_products_match/', views.ProductMatchListView.as_view()),
+    path('get_product_basic_info/', views.get_basic_info_product),
 ]
