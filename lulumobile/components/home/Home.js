@@ -40,6 +40,7 @@ function Home() {
         if (page > 0) {
             try {
                 setLoadMore(true)
+                console.log("load page", page)
 
                 let url = `${endpoints['products']}?page=${page}`;
 
@@ -48,7 +49,6 @@ function Home() {
                         url = `${url}&category_id=${cate}`;
                     })
                 }
-                console.log("load")
 
                 if (searchQuery) {
                     url = `${url}&q=${searchQuery}`;
@@ -67,6 +67,8 @@ function Home() {
                 } else if (filterPrice === -1) {
                     url = `${url}&order_price=${filterPrice}`;
                 }
+
+                await new Promise(resolve => setTimeout(resolve, 500));
 
                 let res = await Apis.get(url);
 

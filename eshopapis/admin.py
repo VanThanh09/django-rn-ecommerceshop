@@ -70,11 +70,18 @@ class MyAdminSite(admin.AdminSite):
             'revenue_1_year': "{:,.0f}".format(revenue_1_year)
         })
 
-        context['top_categories'] = list(
+        top_categories = list(
             Category.objects.annotate(product_count=Count('products'))
             .order_by('-product_count')
-            .values_list('name', 'product_count')[:5]
+            .values('name', 'product_count')[:5]
         )
+
+        context['top_categories'] = top_categories
+
+        labels = [entry['name'] for entry in top_categories]
+        counts = [entry['product_count'] for entry in top_categories]
+        context['cate_chart_labels'] = json.dumps(labels)
+        context['cate_chart_data'] = json.dumps(counts)
 
         revenue_by_store = list(OrderDetail.objects.filter(
             order_status=OrderDetail.OrderStatus.SUCCESS,

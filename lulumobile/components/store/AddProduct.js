@@ -243,17 +243,6 @@ const AddProduct = () => {
             }
         }
 
-        // Chưa kiểm tra tên từng values phải đúng với value trong variant
-
-        // attributes = [{ name: "Kích thước", values: ["100m", "50m"] }];
-        // variants = [
-        //     { attributes: [{ name: "Kích thước", value: "100m" }] },
-        //     { attributes: [{ name: "Kích thước", value: "50m" }] }
-        // ];
-
-        // Nếu variant chỉ cần đủ 2 và value là 30m 40m gì đó vẫn gửi được
-
-
         return true;
     }
 
@@ -305,13 +294,13 @@ const AddProduct = () => {
                 }
             }
 
-            for (let pair of form.entries()) {
-                console.log(`${pair[0]}:`, pair[1]);
-            }
+            // for (let pair of form.entries()) {
+            //     console.log(`${pair[0]}:`, pair[1]);
+            // }
 
             const token = await AsyncStorage.getItem('token');
 
-            // for (let i = 1; i < 10; i++) {
+            // for (let i = 1; i < 5; i++) {
             let res = await authApis(token).post(endpoints['create_product'], form, {
                 headers: {
                     'Content-Type': 'multipart/form-data',

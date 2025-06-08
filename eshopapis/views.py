@@ -3,6 +3,8 @@ import json
 from collections import defaultdict
 from datetime import timedelta
 
+from django.db.models import Avg, Sum, Q, Value
+from django.db.models.functions import Coalesce
 from django.db.models.functions import TruncDay, TruncMonth
 from django.http import JsonResponse
 from django.utils.timezone import now
@@ -1240,3 +1242,87 @@ def verify_isPaid_orderId(request):
         return Response({'paid': payment.payment_status}, status=status.HTTP_200_OK)
     else:
         return Response({'paid': False}, status=status.HTTP_200_OK)
+
+
+class ProductMatchListView(generics.ListAPIView, generics.RetrieveAPIView):
+    serializer_class = serializers.ProductListSerializer
+    pagination_class = paginators.ProductPage
+    queryset = Product.objects.filter(active=True)  # base queryset
+
+    def get_queryset(self):
+        # This controls what data the API returns for both list and retrieve
+        queryset = super().get_queryset()
+        category_ids = self.request.query_params.get('categories')
+        store_id = self.request.query_params.get('store')
+        topProductsGetSold = self.request.query_params.get('topProductsGetSold')
+        ascending = self.request.query_params.get('ascending')
+        findBetterPrice = self.request.query_params.get('findBetterPrice')
+
+        if category_ids:
+            ids = [int(cid) for cid in category_ids.split(',') if cid.isdigit()]
+            queryset = queryset.filter(category__id__in=ids).distinct()
+
+        if store_id:
+            queryset = queryset.filter(~Q(store__id=store_id))
+
+        if findBetterPrice:
+            queryset = queryset.annotate(
+                avg_price=Avg(
+                    'productvariant__price',
+                    filter=Q(productvariant__active=True)
+                )
+            ).filter(avg_price__lt=int(findBetterPrice))  # 👈 Lọc theo avg_price nhỏ hơn 100000
+
+        if topProductsGetSold == 'true':
+            queryset = queryset.annotate(
+                total_sold=Coalesce(
+                    Sum(
+                        'productvariant__orderdetail__quantity',
+                        filter=Q(productvariant__orderdetail__order_status='SU')
+                    ),
+                    Value(0)
+                )
+            ).order_by('-total_sold')
+        else:
+            queryset = queryset.annotate(
+                total_sold=Coalesce(
+                    Sum(
+                        'productvariant__orderdetail__quantity',
+                        filter=Q(productvariant__orderdetail__order_status='SU')
+                    ),
+                    Value(0)
+                )
+            )
+
+        if ascending == 'true':
+            queryset = queryset.annotate(
+                avg_price=Avg(
+                    'productvariant__price',
+                    filter=Q(productvariant__active=True)
+                )
+            ).order_by('avg_price')
+        elif ascending == 'false':
+            queryset = queryset.annotate(
+                avg_price=Avg(
+                    'productvariant__price',
+                    filter=Q(productvariant__active=True)
+                )
+            ).order_by('-avg_price')
+        else:
+            queryset = queryset.annotate(
+                avg_price=Avg(
+                    'productvariant__price',
+                    filter=Q(productvariant__active=True)
+                )
+            )
+
+        return queryset
+
+@api_view(['GET'])
+def get_basic_info_product(request):
+    productId = request.query_params.get('id')
+    product = Product.objects.get(pk=productId)
+
+    serializer = serializers.ProductBasicSerializer(product)
+
+    return Response(serializer.data, status=status.HTTP_200_OK)

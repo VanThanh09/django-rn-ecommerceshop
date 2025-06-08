@@ -7,11 +7,6 @@ import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CartContext, MyDispatchContext } from "../../configs/MyContext";
 import { CommonActions } from '@react-navigation/native';
-import * as Google from 'expo-auth-session/providers/google';
-import * as AuthSession from 'expo-auth-session';
-import * as WebBrowser from 'expo-web-browser';
-
-WebBrowser.maybeCompleteAuthSession();
 
 const Login = ({ route }) => {
     const info = [{

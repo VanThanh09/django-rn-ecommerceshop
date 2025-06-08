@@ -40,4 +40,6 @@ urlpatterns = [
     path('revenue/', views.revenue_chart_data),
     path('count_order_pending/', views.count_order_pending),
     path('revenue_of_store/', views.revenue_of_store),
+    path('find_products_match/', views.ProductMatchListView.as_view()),
+    path('get_product_basic_info/', views.get_basic_info_product),
 ]

@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db.models import Avg, Sum, Q
 from eshopapis.models import Product, Store, User, ProductVariant, AttributeValue, VerificationSeller, Category, \
     CartDetail, Cart, Order, OrderDetail, CommentImage, CommentUser, CommentSeller, StoreRating
 
@@ -540,3 +541,101 @@ class StoreProductSerializer(serializers.ModelSerializer):
         data['logo'] = instance.logo.url
 
         return data
+
+
+class ProductListSerializer(serializers.ModelSerializer):
+    avg_star = serializers.SerializerMethodField()
+    total_sold = serializers.IntegerField(read_only=True)
+    avg_price = serializers.IntegerField(read_only=True)
+
+    def get_avg_star(self, obj):
+        list_product_variant = obj.productvariant_set.all()
+        list_comment = CommentUser.objects.none()
+
+        for p in list_product_variant:
+            list_comment = list_comment.union(p.comments.all())
+
+        # Trung binh so sao
+        average_rating = 0
+        hasRating = False
+        productHasRating = CommentUser.objects.filter(product_variant__product__id=obj.id)
+        if productHasRating.exists():
+            average_rating = productHasRating.aggregate(Avg('rating'))['rating__avg']
+            hasRating = True
+        return {
+            'average_rating': round(average_rating,1),
+            'hasRating': hasRating
+        }
+
+    class Meta:
+        model = Product
+        fields = ['id', 'logo', 'name', 'avg_price', 'avg_star' ,'total_sold']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['logo'] = instance.logo.url
+
+        return data
+
+
+class ProductBasicSerializer(serializers.ModelSerializer):
+    avg_star = serializers.SerializerMethodField()
+    total_sold = serializers.SerializerMethodField()
+    avg_price = serializers.SerializerMethodField()
+    category_set=CategorySerializer(many=True)
+
+    def get_avg_star(self, obj):
+        list_product_variant = obj.productvariant_set.all()
+        list_comment = CommentUser.objects.none()
+
+        for p in list_product_variant:
+            list_comment = list_comment.union(p.comments.all())
+
+        # Trung binh so sao
+        average_rating = 0
+        hasRating = False
+        productHasRating = CommentUser.objects.filter(product_variant__product__id=obj.id)
+        if productHasRating.exists():
+            average_rating = productHasRating.aggregate(Avg('rating'))['rating__avg']
+            hasRating = True
+
+        # print(round(average_rating,1))
+        # print(hasRating)
+        return {
+            'average_rating': round(average_rating,1),
+            'hasRating': hasRating
+        }
+
+    def get_total_sold(self, obj):
+        list_product_variant = obj.productvariant_set.all()
+
+        sold_items = 0
+        for p in list_product_variant:
+            count = OrderDetail.objects.filter(order_status='SU', product_variant=p).aggregate(count=Sum('quantity'))[
+                'count']
+            if count:
+                sold_items += count
+
+        # print(sold_items)
+        return sold_items
+
+    def get_avg_price(self, obj):
+        # print(int(obj.productvariant_set.filter(active=True).aggregate(
+        #     avg_price=Avg('price')
+        # )['avg_price']) or 0)
+
+        return int(obj.productvariant_set.filter(active=True).aggregate(
+            avg_price=Avg('price')
+        )['avg_price']) or 0
+
+    # print(category_set)
+
+    class Meta:
+        model = Product
+        fields = ['id', 'logo', 'name','category_set', 'store' ,'avg_price', 'avg_star' ,'total_sold']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['logo'] = instance.logo.url
+
+        return  data

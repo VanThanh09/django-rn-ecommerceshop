@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = 'https://2b66-2402-800-62ec-c9ee-9977-4dea-4290-c485.ngrok-free.app/'
+const BASE_URL = 'https://065a-2402-800-62ec-c9ee-9d66-fdeb-84c4-497.ngrok-free.app/'
 export const endpoints = {
     'products': '/products/',
     'getProductById': (pId) => `products/${pId}/`,
@@ -32,6 +32,9 @@ export const endpoints = {
     'verifyIsPaidOrderId': '/verify_isPaid_orderId/',
     'getLocationOfVietNam': (A, B) => `https://esgoo.net/api-tinhthanh/${A}/${B}.htm`,
     'updateUserInfo': '/patch_user_info/',
+    'getProductBasicInfo': (pId) => `get_product_basic_info/?id=${pId}`,
+    'getProductsSimilar': (cates, storeId) => `find_products_match/?categories=${cates}&store=${storeId}&topProductsGetSold=true`,
+    'getProductsBetterPrice': (cates, storeId, priceToCompare) => `find_products_match/?categories=${cates}&store=${storeId}&findBetterPrice=${priceToCompare}`,
 
     'orderOfStore': (status) => `/portal/store/orders/?status=${status}`,
     'update_order_detail': (oId) => `/update_order_detail/${oId}/`,
