@@ -2,6 +2,26 @@
 
 This is a Django-based web application for a ecommerce shop.
 
+## Features
+1. **Customer**
+- Register/Login account (with avatar).
+- Browse product listings, search, filter, and pagination (20 products/page).
+- Review products (1–5 stars), write comments, reply to comments.
+- Place online orders and payment (momo).
+- Track order status.
+2. **Seller**
+- Register as a seller and create a store.
+- Upload and manage products (description, image, price).
+- View business reports, product categories, and sales by month, quarter, and year.
+3. **Staff**
+- Verify seller/business account registration.
+- Support managing stores and products.
+4. **Admin**
+- Manage the entire system: users, sellers, and staff.
+- View statistics on sales frequency and business performance (monthly, quarterly, yearly).
+- Compare product sales across stores to support customer decision-making.
+- Monitor system-wide transactions and revenue
+
 ## Prerequisites
 
 - Python 3.x
